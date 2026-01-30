@@ -3,6 +3,7 @@
 
 import { Router, Response } from 'express';
 import { generateSchedule, getScheduleForDay } from '../services/scheduler';
+import { getDayCapacity } from '../services/dayAssignment';
 
 const router = Router();
 
@@ -33,11 +34,13 @@ router.get('/', async (_req, res) => {
     date.setDate(date.getDate() + i);
 
     const schedule = await getScheduleForDay(date);
+    const capacity = await getDayCapacity(date.getDay());
     days.push({
       date,
       isToday: i === 0,
       plannedMinutes: schedule?.plannedMinutes || 0,
       episodes: schedule?.episodes || [],
+      capacity,
     });
   }
 

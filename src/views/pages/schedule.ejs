@@ -11,7 +11,23 @@
           <span class="text-purple-400 text-sm ml-2">Today</span>
           <% } %>
         </h2>
-        <span class="text-sm text-gray-400"><%= day.plannedMinutes %> min planned</span>
+        <div class="text-sm text-gray-400">
+          <span><%= day.capacity.usedMinutes %>/<%= day.capacity.totalMinutes %> min</span>
+          <% if (day.capacity.availableMinutes > 0) { %>
+          <span class="text-green-400 ml-2">(+<%= day.capacity.availableMinutes %> available)</span>
+          <% } else if (day.capacity.availableMinutes < 0) { %>
+          <span class="text-red-400 ml-2">(<%= day.capacity.availableMinutes %> over)</span>
+          <% } %>
+        </div>
+      </div>
+
+      <!-- Capacity Progress Bar -->
+      <div class="mb-3">
+        <div class="h-2 bg-gray-700 rounded-full overflow-hidden">
+          <% const usedPercent = day.capacity.totalMinutes > 0 ? Math.min(100, (day.capacity.usedMinutes / day.capacity.totalMinutes) * 100) : 0; %>
+          <% const barColor = day.capacity.availableMinutes < 0 ? 'bg-red-500' : (usedPercent > 80 ? 'bg-yellow-500' : 'bg-purple-500'); %>
+          <div class="h-full <%= barColor %> transition-all" style="width: <%= usedPercent %>%"></div>
+        </div>
       </div>
 
       <% if (day.episodes.length === 0) { %>
