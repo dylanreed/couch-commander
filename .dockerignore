@@ -1,0 +1,16 @@
+# ABOUTME: Docker ignore file to keep build context small.
+# ABOUTME: Excludes dev files, node_modules, and local databases.
+
+node_modules
+dist
+*.db
+*.db-journal
+.env
+.env.*
+.git
+.gitignore
+*.md
+!README.md
+.vscode
+coverage
+*.log
