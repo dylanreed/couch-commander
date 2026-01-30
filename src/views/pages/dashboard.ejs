@@ -1,0 +1,50 @@
+<div class="space-y-8">
+  <h1 class="text-3xl font-bold">Today's Schedule</h1>
+
+  <% if (needsCheckin && yesterdayEpisodes.length > 0) { %>
+  <div id="checkin-section" class="bg-yellow-900/50 border border-yellow-600 rounded-lg p-4">
+    <h2 class="text-lg font-semibold text-yellow-400 mb-2">Yesterday's Schedule</h2>
+    <p class="text-gray-300 mb-4">Did you watch these episodes?</p>
+    <form hx-post="/api/checkin" hx-target="#checkin-section" hx-swap="outerHTML">
+      <div class="space-y-2">
+        <% yesterdayEpisodes.forEach(ep => { %>
+        <div class="flex items-center gap-4 bg-gray-800 p-2 rounded">
+          <span class="flex-1"><%= ep.show.title %> S<%= ep.season %>E<%= ep.episode %></span>
+          <label class="flex items-center gap-1">
+            <input type="radio" name="ep_<%= ep.id %>" value="watched" checked> Watched
+          </label>
+          <label class="flex items-center gap-1">
+            <input type="radio" name="ep_<%= ep.id %>" value="skipped"> Skipped
+          </label>
+        </div>
+        <% }) %>
+      </div>
+      <button type="submit" class="mt-4 bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded">
+        Confirm
+      </button>
+    </form>
+  </div>
+  <% } %>
+
+  <div class="grid gap-4">
+    <% if (todayEpisodes.length === 0) { %>
+    <p class="text-gray-400">No episodes scheduled for today. Add some shows to your watchlist!</p>
+    <% } else { %>
+    <% todayEpisodes.forEach((ep, index) => { %>
+    <div class="bg-gray-800 rounded-lg p-4 flex gap-4">
+      <% if (ep.show.posterPath) { %>
+      <img src="https://image.tmdb.org/t/p/w92<%= ep.show.posterPath %>"
+           alt="<%= ep.show.title %>"
+           class="w-16 rounded">
+      <% } %>
+      <div class="flex-1">
+        <h3 class="font-semibold"><%= ep.show.title %></h3>
+        <p class="text-gray-400">Season <%= ep.season %>, Episode <%= ep.episode %></p>
+        <p class="text-sm text-gray-500"><%= ep.runtime %> min</p>
+      </div>
+      <div class="text-2xl font-bold text-gray-600">#<%= index + 1 %></div>
+    </div>
+    <% }) %>
+    <% } %>
+  </div>
+</div>

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> | Couch Commander</title>
+  <link rel="stylesheet" href="/css/styles.css">
+  <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+  <nav class="bg-gray-800 border-b border-gray-700">
+    <div class="max-w-7xl mx-auto px-4 py-3">
+      <div class="flex items-center justify-between">
+        <a href="/" class="text-xl font-bold text-purple-400">Couch Commander</a>
+        <div class="flex gap-4">
+          <a href="/" class="hover:text-purple-400">Dashboard</a>
+          <a href="/watchlist" class="hover:text-purple-400">Watchlist</a>
+          <a href="/schedule" class="hover:text-purple-400">Schedule</a>
+          <a href="/settings" class="hover:text-purple-400">Settings</a>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <main class="max-w-7xl mx-auto px-4 py-8">
+    <%- body %>
+  </main>
+</body>
+</html>
