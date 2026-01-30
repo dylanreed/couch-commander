@@ -42,6 +42,34 @@ async function updateEpisode(entryId) {
     alert('Failed to save episode');
   }
 }
+
+let queueAvailability = {};
+
+async function loadAvailability() {
+  try {
+    const res = await fetch('/api/watchlist/availability');
+    queueAvailability = await res.json();
+    updateAvailabilityBadges();
+  } catch (err) {
+    console.error('Failed to load availability:', err);
+  }
+}
+
+function updateAvailabilityBadges() {
+  Object.entries(queueAvailability).forEach(([entryId, status]) => {
+    const badge = document.getElementById('availability-' + entryId);
+    if (badge && !status.available) {
+      const dateText = status.airDate
+        ? new Date(status.airDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        : 'TBA';
+      badge.textContent = 'Waiting - ' + dateText;
+      badge.classList.remove('hidden');
+    }
+  });
+}
+
+// Load on page ready
+document.addEventListener('DOMContentLoaded', loadAvailability);
 </script>
 
 <div class="space-y-8">
@@ -203,6 +231,9 @@ async function updateEpisode(entryId) {
               <% } else if (entry.show.status === 'Ended') { %>
               <span class="text-xs text-gray-500 ml-1">● Ended</span>
               <% } %>
+              <span id="availability-<%= entry.id %>"
+                    class="hidden text-xs text-yellow-400 ml-1">
+              </span>
             </h3>
             <p class="text-sm text-gray-400">
               <span class="cursor-pointer hover:text-purple-400" onclick="toggleEpisodeEdit(<%= entry.id %>)">
@@ -229,7 +260,7 @@ async function updateEpisode(entryId) {
             <button type="button"
                     hx-post="/api/watchlist/<%= entry.id %>/promote"
                     hx-swap="none"
-                    hx-on::after-request="location.reload()"
+                    hx-on::after-request="if(event.detail.failed) { alert(JSON.parse(event.detail.xhr.responseText).error); } else { location.reload(); }"
                     class="bg-purple-600 hover:bg-purple-700 px-3 py-1 rounded text-sm">
               Promote
             </button>
