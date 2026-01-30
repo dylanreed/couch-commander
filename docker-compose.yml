@@ -1,5 +1,5 @@
 # ABOUTME: Docker Compose file for easy NAS deployment.
-# ABOUTME: Persists SQLite database in a volume, exposes on port 5055.
+# ABOUTME: Persists SQLite database in a volume, exposes on port 4242.
 
 services:
   couch-commander:
@@ -7,7 +7,7 @@ services:
     container_name: couch-commander
     restart: unless-stopped
     ports:
-      - "5055:5055"
+      - "4242:4242"
     volumes:
       - couch-data:/data
     environment:
@@ -15,7 +15,7 @@ services:
       - DATABASE_URL=file:/data/couch-commander.db
       - TMDB_API_KEY=${TMDB_API_KEY}
     healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:5055', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"]
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:4242', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"]
       interval: 30s
       timeout: 10s
       retries: 3

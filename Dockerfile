@@ -37,16 +37,16 @@ RUN npx prisma generate
 # Copy built files from builder
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/public ./public
-COPY --from=builder /app/src/views ./src/views
+COPY --from=builder /app/src/views ./dist/views
 
 # Create data directory for SQLite
 RUN mkdir -p /data
 
 ENV NODE_ENV=production
 ENV DATABASE_URL=file:/data/couch-commander.db
-ENV PORT=5055
+ENV PORT=4242
 
-EXPOSE 5055
+EXPOSE 4242
 
 # Run migrations and start
 CMD ["sh", "-c", "npx prisma db push --skip-generate && node dist/index.js"]
