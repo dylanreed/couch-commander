@@ -52,7 +52,8 @@ describe('Settings Service', () => {
   describe('getMinutesForDay', () => {
     it('returns weekday minutes for Monday', async () => {
       await getSettings();
-      const monday = new Date('2026-02-02'); // A Monday
+      // Use local date constructor to avoid timezone issues
+      const monday = new Date(2026, 1, 2); // Feb 2, 2026 = Monday
 
       const minutes = await getMinutesForDay(monday);
       expect(minutes).toBe(120);
@@ -60,7 +61,8 @@ describe('Settings Service', () => {
 
     it('returns weekend minutes for Saturday', async () => {
       await getSettings();
-      const saturday = new Date('2026-02-07'); // A Saturday
+      // Use local date constructor to avoid timezone issues
+      const saturday = new Date(2026, 1, 7); // Feb 7, 2026 = Saturday
 
       const minutes = await getMinutesForDay(saturday);
       expect(minutes).toBe(240);
@@ -68,7 +70,8 @@ describe('Settings Service', () => {
 
     it('returns day-specific override when set', async () => {
       await updateSettings({ mondayMinutes: 180 });
-      const monday = new Date('2026-02-02');
+      // Use local date constructor to avoid timezone issues
+      const monday = new Date(2026, 1, 2); // Feb 2, 2026 = Monday
 
       const minutes = await getMinutesForDay(monday);
       expect(minutes).toBe(180);

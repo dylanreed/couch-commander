@@ -5,17 +5,13 @@ import { prisma } from '../lib/db';
 import type { Settings } from '@prisma/client';
 
 export async function getSettings(): Promise<Settings> {
-  let settings = await prisma.settings.findUnique({
+  // Use upsert to avoid race condition when multiple concurrent calls
+  // try to create settings simultaneously
+  return prisma.settings.upsert({
     where: { id: 1 },
+    update: {},
+    create: { id: 1 },
   });
-
-  if (!settings) {
-    settings = await prisma.settings.create({
-      data: { id: 1 },
-    });
-  }
-
-  return settings;
 }
 
 export async function updateSettings(

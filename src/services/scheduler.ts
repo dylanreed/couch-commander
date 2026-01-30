@@ -1,13 +1,16 @@
 // ABOUTME: Core scheduling engine for generating viewing schedules.
-// ABOUTME: Supports sequential, round-robin, and genre-slotted modes.
+// ABOUTME: Generates day-based schedules based on show assignments to specific days of the week.
 
 import { prisma } from '../lib/db';
 import { getSettings, getMinutesForDay } from './settings';
-import { getWatchlist, type WatchlistEntryWithShow } from './watchlist';
-import type { ScheduleDay, ScheduledEpisode, Show } from '@prisma/client';
+import type { ScheduleDay, ScheduledEpisode, Show, WatchlistEntry } from '@prisma/client';
 
 export type ScheduleDayWithEpisodes = ScheduleDay & {
   episodes: (ScheduledEpisode & { show: Show })[];
+};
+
+type AssignmentWithEntry = {
+  watchlistEntry: WatchlistEntry & { show: Show };
 };
 
 export async function getScheduleForDay(date: Date): Promise<ScheduleDayWithEpisodes | null> {
@@ -27,30 +30,42 @@ export async function getScheduleForDay(date: Date): Promise<ScheduleDayWithEpis
 
 export async function generateSchedule(startDate: Date, days: number): Promise<void> {
   const settings = await getSettings();
-  const watchlist = await getWatchlist();
 
-  if (watchlist.length === 0) {
-    return;
-  }
-
-  // Track current position for each show
+  // Track current position for each show across all days being generated
   const positions = new Map<number, { season: number; episode: number }>();
-  for (const entry of watchlist) {
-    positions.set(entry.id, {
-      season: entry.currentSeason,
-      episode: entry.currentEpisode,
-    });
-  }
 
   for (let i = 0; i < days; i++) {
     const currentDate = new Date(startDate);
     currentDate.setDate(currentDate.getDate() + i);
     currentDate.setHours(0, 0, 0, 0);
 
+    const dayOfWeek = currentDate.getDay();
     const minutesForDay = await getMinutesForDay(currentDate);
 
-    // Create or clear the schedule day
-    await prisma.scheduleDay.upsert({
+    // Get shows assigned to this day of week with watching status
+    const assignments = await prisma.showDayAssignment.findMany({
+      where: {
+        dayOfWeek,
+        watchlistEntry: { status: 'watching' },
+      },
+      include: {
+        watchlistEntry: { include: { show: true } },
+      },
+    });
+
+    // Initialize positions for shows we haven't seen yet
+    for (const assignment of assignments) {
+      const entry = assignment.watchlistEntry;
+      if (!positions.has(entry.id)) {
+        positions.set(entry.id, {
+          season: entry.currentSeason,
+          episode: entry.currentEpisode,
+        });
+      }
+    }
+
+    // Create or update schedule day
+    const scheduleDay = await prisma.scheduleDay.upsert({
       where: { date: currentDate },
       update: { plannedMinutes: minutesForDay },
       create: { date: currentDate, plannedMinutes: minutesForDay },
@@ -58,51 +73,31 @@ export async function generateSchedule(startDate: Date, days: number): Promise<v
 
     // Clear existing episodes for this day
     await prisma.scheduledEpisode.deleteMany({
-      where: { scheduleDay: { date: currentDate } },
+      where: { scheduleDayId: scheduleDay.id },
     });
 
-    const scheduleDay = await prisma.scheduleDay.findUnique({
-      where: { date: currentDate },
-    });
-
-    if (!scheduleDay) continue;
-
-    let remainingMinutes = minutesForDay;
-    const episodeOrder = 0;
-
+    // Fill day with episodes from assigned shows
     if (settings.schedulingMode === 'sequential') {
-      remainingMinutes = await fillDaySequential(
-        scheduleDay.id,
-        watchlist,
-        positions,
-        remainingMinutes,
-        episodeOrder
-      );
+      await fillDaySequential(scheduleDay.id, assignments, positions, minutesForDay);
     } else if (settings.schedulingMode === 'roundrobin') {
-      remainingMinutes = await fillDayRoundRobin(
-        scheduleDay.id,
-        watchlist,
-        positions,
-        remainingMinutes,
-        episodeOrder
-      );
+      await fillDayRoundRobin(scheduleDay.id, assignments, positions, minutesForDay);
     }
-    // Genre mode would go here
   }
 }
 
 async function fillDaySequential(
   scheduleDayId: number,
-  watchlist: WatchlistEntryWithShow[],
+  assignments: AssignmentWithEntry[],
   positions: Map<number, { season: number; episode: number }>,
-  remainingMinutes: number,
-  startOrder: number
-): Promise<number> {
-  let order = startOrder;
+  budgetMinutes: number
+): Promise<void> {
+  let remainingMinutes = budgetMinutes;
+  let order = 0;
 
-  for (const entry of watchlist) {
+  for (const assignment of assignments) {
     if (remainingMinutes <= 0) break;
 
+    const entry = assignment.watchlistEntry;
     const pos = positions.get(entry.id)!;
     const runtime = entry.show.episodeRuntime;
 
@@ -128,26 +123,25 @@ async function fillDaySequential(
       // In a full implementation, we'd need season/episode data from TMDB
     }
   }
-
-  return remainingMinutes;
 }
 
 async function fillDayRoundRobin(
   scheduleDayId: number,
-  watchlist: WatchlistEntryWithShow[],
+  assignments: AssignmentWithEntry[],
   positions: Map<number, { season: number; episode: number }>,
-  remainingMinutes: number,
-  startOrder: number
-): Promise<number> {
-  let order = startOrder;
+  budgetMinutes: number
+): Promise<void> {
+  let remainingMinutes = budgetMinutes;
+  let order = 0;
   let addedThisRound = true;
 
   while (remainingMinutes > 0 && addedThisRound) {
     addedThisRound = false;
 
-    for (const entry of watchlist) {
+    for (const assignment of assignments) {
       if (remainingMinutes <= 0) break;
 
+      const entry = assignment.watchlistEntry;
       const pos = positions.get(entry.id)!;
       const runtime = entry.show.episodeRuntime;
 
@@ -171,8 +165,6 @@ async function fillDayRoundRobin(
       }
     }
   }
-
-  return remainingMinutes;
 }
 
 export async function clearSchedule(): Promise<void> {
