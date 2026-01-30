@@ -112,25 +112,24 @@ describe('Watchlist API', () => {
       expect(res.body.finishedEntry.status).toBe('finished');
     });
 
-    it('auto-promotes from queue when finishing', async () => {
+    it('returns null promotedEntry (user picks manually)', async () => {
       // Add two shows
       const add1 = await request(app)
         .post('/api/watchlist')
         .send({ tmdbId: 1396 });
-      const add2 = await request(app)
+      await request(app)
         .post('/api/watchlist')
         .send({ tmdbId: 60059 });
 
       // Promote first one
       await request(app).post(`/api/watchlist/${add1.body.id}/promote`);
 
-      // Finish it - should auto-promote the second
+      // Finish it - should NOT auto-promote (user picks manually)
       const res = await request(app)
         .post(`/api/watchlist/${add1.body.id}/finish`);
 
       expect(res.status).toBe(200);
-      expect(res.body.promotedEntry).not.toBeNull();
-      expect(res.body.promotedEntry.status).toBe('watching');
+      expect(res.body.promotedEntry).toBeNull();
     });
   });
 });

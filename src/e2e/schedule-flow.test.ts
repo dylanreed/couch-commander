@@ -65,7 +65,7 @@ describe('E2E: Schedule Flow', () => {
     expect(ep!.status).toBe('watched');
   });
 
-  it('finishes show and auto-promotes from queue', async () => {
+  it('finishes show without auto-promoting (user picks manually)', async () => {
     await updateSettings({ weekdayMinutes: 120 });
 
     // Add two shows
@@ -73,17 +73,15 @@ describe('E2E: Schedule Flow', () => {
     const show2 = await cacheShow(60059);
 
     const entry1 = await addToWatchlist(show1.id);
-    const entry2 = await addToWatchlist(show2.id);
+    await addToWatchlist(show2.id);
 
     // Promote first, second stays in queue
     await promoteFromQueue(entry1.id);
 
-    // Finish first show
+    // Finish first show - should NOT auto-promote
     const result = await finishShow(entry1.id);
 
     expect(result.finishedEntry.status).toBe('finished');
-    expect(result.promotedEntry).not.toBeNull();
-    expect(result.promotedEntry!.id).toBe(entry2.id);
-    expect(result.promotedEntry!.status).toBe('watching');
+    expect(result.promotedEntry).toBeNull(); // User picks manually
   });
 });

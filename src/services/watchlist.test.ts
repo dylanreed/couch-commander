@@ -311,7 +311,7 @@ describe('Watchlist Service', () => {
       expect(assignments.length).toBe(0);
     });
 
-    it('auto-promotes from queue when show finishes', async () => {
+    it('returns null promotedEntry (user picks manually)', async () => {
       await updateSettings({ weekdayMinutes: 120 });
 
       // Watching show
@@ -321,14 +321,13 @@ describe('Watchlist Service', () => {
 
       // Queued show
       const show2 = await cacheShow(60059); // Better Call Saul
-      const entry2 = await addToWatchlist(show2.id);
+      await addToWatchlist(show2.id);
 
-      // Finish the first show
+      // Finish the first show - should NOT auto-promote
       const result = await finishShow(entry1.id);
 
       expect(result.finishedEntry.status).toBe('finished');
-      expect(result.promotedEntry).not.toBeNull();
-      expect(result.promotedEntry?.status).toBe('watching');
+      expect(result.promotedEntry).toBeNull(); // User picks manually
     });
 
     it('returns null promotedEntry when queue is empty', async () => {
