@@ -1,0 +1,40 @@
+<div class="space-y-8">
+  <h1 class="text-3xl font-bold">Weekly Schedule</h1>
+
+  <div class="grid gap-4">
+    <% days.forEach(day => { %>
+    <div class="bg-gray-800 rounded-lg p-4">
+      <div class="flex justify-between items-center mb-3">
+        <h2 class="font-semibold">
+          <%= day.date.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }) %>
+          <% if (day.isToday) { %>
+          <span class="text-purple-400 text-sm ml-2">Today</span>
+          <% } %>
+        </h2>
+        <span class="text-sm text-gray-400"><%= day.plannedMinutes %> min planned</span>
+      </div>
+
+      <% if (day.episodes.length === 0) { %>
+      <p class="text-gray-500 text-sm">No episodes scheduled</p>
+      <% } else { %>
+      <div class="space-y-2">
+        <% day.episodes.forEach(ep => { %>
+        <div class="flex items-center gap-3 text-sm <%= ep.status === 'watched' ? 'opacity-50' : '' %>">
+          <% if (ep.status === 'watched') { %>
+          <span class="text-green-400">✓</span>
+          <% } else if (ep.status === 'skipped') { %>
+          <span class="text-yellow-400">○</span>
+          <% } else { %>
+          <span class="text-gray-500">•</span>
+          <% } %>
+          <span class="flex-1"><%= ep.show.title %></span>
+          <span class="text-gray-400">S<%= ep.season %>E<%= ep.episode %></span>
+          <span class="text-gray-500"><%= ep.runtime %>m</span>
+        </div>
+        <% }) %>
+      </div>
+      <% } %>
+    </div>
+    <% }) %>
+  </div>
+</div>

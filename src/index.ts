@@ -7,8 +7,10 @@ import dotenv from 'dotenv';
 import { getScheduleForDay, generateSchedule } from './services/scheduler';
 import watchlistRoutes from './routes/watchlist';
 import settingsRoutes from './routes/settings';
+import scheduleRoutes from './routes/schedule';
 import showsApiRoutes from './routes/api/shows';
 import watchlistApiRoutes from './routes/api/watchlist';
+import checkinApiRoutes from './routes/api/checkin';
 
 dotenv.config();
 
@@ -42,10 +44,12 @@ function renderWithLayout(
 // API routes
 app.use('/api/shows', showsApiRoutes);
 app.use('/api/watchlist', watchlistApiRoutes);
+app.use('/api/checkin', checkinApiRoutes);
 
 // Page routes
 app.use('/watchlist', watchlistRoutes);
 app.use('/settings', settingsRoutes);
+app.use('/schedule', scheduleRoutes);
 
 // Routes
 app.get('/health', (_req, res) => {
