@@ -35,6 +35,12 @@ Perfect for cord-cutters juggling multiple streaming services, families coordina
 *My Shows - Watchlist Management*
 ![Watchlist](docs/screenshots/watchlist.png)
 
+*Weekly Schedule*
+![Schedule](docs/screenshots/schedule.png)
+
+*Settings*
+![Settings](docs/screenshots/settings.png)
+
 ## Quick Start
 
 ### Prerequisites
