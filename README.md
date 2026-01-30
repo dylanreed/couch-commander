@@ -51,7 +51,7 @@ Perfect for cord-cutters juggling multiple streaming services, families coordina
 
 1. Clone the repo:
    ```bash
-   git clone https://github.com/yourusername/couch-commander.git
+   git clone https://github.com/dylanreed/couch-commander.git
    cd couch-commander
    ```
 
@@ -73,7 +73,7 @@ Perfect for cord-cutters juggling multiple streaming services, families coordina
 
 1. Clone and install:
    ```bash
-   git clone https://github.com/yourusername/couch-commander.git
+   git clone https://github.com/dylanreed/couch-commander.git
    cd couch-commander
    npm install
    ```
