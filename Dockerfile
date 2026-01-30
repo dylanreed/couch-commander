@@ -9,13 +9,15 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 
-# Copy source and build
+# Copy source
 COPY . .
+
+# Generate Prisma client BEFORE TypeScript build (types needed)
+RUN npx prisma generate
+
+# Now build
 RUN npm run build
 RUN npm run css:build
-
-# Generate Prisma client
-RUN npx prisma generate
 
 FROM node:22-slim
 
