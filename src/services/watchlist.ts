@@ -167,6 +167,7 @@ export async function demoteToQueue(entryId: number): Promise<WatchlistEntryWith
 export interface FinishShowResult {
   finishedEntry: WatchlistEntryWithShow;
   promotedEntry: WatchlistEntryWithShowAndAssignments | null;
+  movedToQueue: boolean; // True if show is returning and was moved to queue instead of finished
 }
 
 export async function finishShow(entryId: number): Promise<FinishShowResult> {
@@ -178,17 +179,21 @@ export async function finishShow(entryId: number): Promise<FinishShowResult> {
   if (!entry) throw new Error('Entry not found');
 
   const freedRuntime = entry.show.episodeRuntime;
+  const isReturning = entry.show.status === 'Returning Series';
 
   // Remove day assignments first
   await removeAllAssignments(entryId);
 
-  // Mark as finished
+  // If show is returning, move to queue to wait for new episodes
+  // Otherwise mark as finished
+  const newStatus = isReturning ? 'queued' : 'finished';
+
   await prisma.watchlistEntry.update({
     where: { id: entryId },
-    data: { status: 'finished' },
+    data: { status: newStatus },
   });
 
-  // Find best queue candidate to promote
+  // Find best queue candidate to promote (only if we actually finished a show)
   const promotedEntry = await autoPromoteFromQueue(freedRuntime);
 
   const finishedEntry = await prisma.watchlistEntry.findUnique({
@@ -199,6 +204,7 @@ export async function finishShow(entryId: number): Promise<FinishShowResult> {
   return {
     finishedEntry: finishedEntry!,
     promotedEntry,
+    movedToQueue: isReturning,
   };
 }
 

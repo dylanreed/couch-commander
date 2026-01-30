@@ -93,12 +93,20 @@ async function updateEpisode(entryId) {
           <div class="w-12 h-18 bg-gray-700 rounded flex items-center justify-center text-gray-500 text-xs">No img</div>
           <% } %>
           <div class="flex-1">
-            <h3 class="font-semibold"><%= entry.show.title %></h3>
+            <h3 class="font-semibold">
+              <%= entry.show.title %>
+              <% if (entry.show.status === 'Returning Series') { %>
+              <span class="text-xs text-blue-400 ml-1">● Returning</span>
+              <% } else if (entry.show.status === 'Ended') { %>
+              <span class="text-xs text-gray-500 ml-1">● Ended</span>
+              <% } %>
+            </h3>
             <p class="text-sm text-gray-400">
               <span class="cursor-pointer hover:text-purple-400" onclick="toggleEpisodeEdit(<%= entry.id %>)">
                 S<%= entry.currentSeason %>E<%= entry.currentEpisode %> ✏️
               </span>
-              &middot; <%= entry.show.episodeRuntime %>min episodes
+              of <%= entry.show.totalSeasons %> seasons (<%= entry.show.totalEpisodes %> eps)
+              &middot; <%= entry.show.episodeRuntime %>min
             </p>
             <!-- Episode Edit Form (hidden by default) -->
             <div id="episode-form-<%= entry.id %>" class="hidden mt-2 flex gap-2 items-center">
@@ -186,12 +194,20 @@ async function updateEpisode(entryId) {
           <div class="w-12 h-18 bg-gray-700 rounded flex items-center justify-center text-gray-500 text-xs">No img</div>
           <% } %>
           <div class="flex-1">
-            <h3 class="font-semibold"><%= entry.show.title %></h3>
+            <h3 class="font-semibold">
+              <%= entry.show.title %>
+              <% if (entry.show.status === 'Returning Series') { %>
+              <span class="text-xs text-blue-400 ml-1">● Returning</span>
+              <% } else if (entry.show.status === 'Ended') { %>
+              <span class="text-xs text-gray-500 ml-1">● Ended</span>
+              <% } %>
+            </h3>
             <p class="text-sm text-gray-400">
               <span class="cursor-pointer hover:text-purple-400" onclick="toggleEpisodeEdit(<%= entry.id %>)">
                 Start at S<%= entry.currentSeason %>E<%= entry.currentEpisode %> ✏️
               </span>
-              &middot; <%= entry.show.totalEpisodes %> eps &middot; <%= entry.show.episodeRuntime %>min
+              &middot; <%= entry.show.totalSeasons %> seasons (<%= entry.show.totalEpisodes %> eps)
+              &middot; <%= entry.show.episodeRuntime %>min
             </p>
             <!-- Episode Edit Form (hidden by default) -->
             <div id="episode-form-<%= entry.id %>" class="hidden mt-2 flex gap-2 items-center">
