@@ -18,6 +18,7 @@ describe('Watchlist Service', () => {
   beforeEach(async () => {
     await prisma.scheduledEpisode.deleteMany();
     await prisma.scheduleDay.deleteMany();
+    await prisma.showDayAssignment.deleteMany();
     await prisma.watchlistEntry.deleteMany();
     await prisma.show.deleteMany();
 

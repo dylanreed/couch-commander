@@ -42,7 +42,19 @@ model WatchlistEntry {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
+  dayAssignments ShowDayAssignment[]
+
   @@unique([showId])
+}
+
+model ShowDayAssignment {
+  id               Int            @id @default(autoincrement())
+  watchlistEntryId Int
+  watchlistEntry   WatchlistEntry @relation(fields: [watchlistEntryId], references: [id], onDelete: Cascade)
+  dayOfWeek        Int            // 0=Sunday, 1=Monday, ... 6=Saturday
+  createdAt        DateTime       @default(now())
+
+  @@unique([watchlistEntryId, dayOfWeek])
 }
 
 model ScheduleDay {

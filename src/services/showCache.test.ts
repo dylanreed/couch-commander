@@ -10,6 +10,7 @@ describe('Show Cache Service', () => {
     // Clean up test data
     await prisma.scheduledEpisode.deleteMany();
     await prisma.scheduleDay.deleteMany();
+    await prisma.showDayAssignment.deleteMany();
     await prisma.watchlistEntry.deleteMany();
     await prisma.show.deleteMany();
   });
