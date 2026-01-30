@@ -1,48 +1,4 @@
 <script>
-function updateDays(entryId) {
-  const checkboxes = document.querySelectorAll('.day-checkbox-' + entryId);
-  const days = [];
-  checkboxes.forEach(cb => {
-    if (cb.checked) days.push(parseInt(cb.value));
-  });
-
-  fetch('/api/watchlist/' + entryId + '/days', {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ days })
-  });
-}
-
-function toggleEpisodeEdit(entryId) {
-  const form = document.getElementById('episode-form-' + entryId);
-  form.classList.toggle('hidden');
-}
-
-async function updateEpisode(entryId) {
-  const season = parseInt(document.getElementById('season-' + entryId).value) || 1;
-  const episode = parseInt(document.getElementById('episode-' + entryId).value) || 1;
-
-  console.log('Saving:', { entryId, season, episode });
-
-  try {
-    const res = await fetch('/api/watchlist/' + entryId + '/episode', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ season, episode })
-    });
-    const data = await res.json();
-    console.log('Response:', data);
-    if (res.ok) {
-      location.reload();
-    } else {
-      alert('Error: ' + (data.error || 'Failed to save'));
-    }
-  } catch (err) {
-    console.error('Error:', err);
-    alert('Failed to save episode');
-  }
-}
-
 let queueAvailability = {};
 
 async function loadAvailability() {
@@ -68,215 +24,327 @@ function updateAvailabilityBadges() {
   });
 }
 
-// Load on page ready
 document.addEventListener('DOMContentLoaded', loadAvailability);
+
+function updateDays(entryId) {
+  const checkboxes = document.querySelectorAll('.day-checkbox-' + entryId);
+  const days = [];
+  checkboxes.forEach(cb => {
+    if (cb.checked) days.push(parseInt(cb.value));
+  });
+
+  fetch('/api/watchlist/' + entryId + '/days', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ days })
+  });
+}
+
+function toggleEpisodeEdit(entryId) {
+  const form = document.getElementById('episode-form-' + entryId);
+  form.classList.toggle('hidden');
+}
+
+async function updateEpisode(entryId) {
+  const season = parseInt(document.getElementById('season-' + entryId).value) || 1;
+  const episode = parseInt(document.getElementById('episode-' + entryId).value) || 1;
+
+  try {
+    const res = await fetch('/api/watchlist/' + entryId + '/episode', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ season, episode })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      location.reload();
+    } else {
+      alert('Error: ' + (data.error || 'Failed to save'));
+    }
+  } catch (err) {
+    console.error('Error:', err);
+    alert('Failed to save episode');
+  }
+}
 </script>
 
-<div class="space-y-8">
-  <h1 class="text-3xl font-bold">My Watchlist</h1>
+<div class="space-y-10">
+  <!-- Header -->
+  <div class="flex items-end justify-between">
+    <div>
+      <h1 class="font-display text-4xl font-semibold text-lounge-cream">My Shows</h1>
+      <p class="text-lounge-muted mt-1">Your personal viewing collection</p>
+    </div>
+  </div>
 
   <!-- Add Show Section -->
-  <div class="bg-gray-800 rounded-lg p-4">
-    <h2 class="text-lg font-semibold mb-4">Add a Show</h2>
-    <div class="flex gap-2">
-      <input type="text"
-             id="show-search"
-             name="query"
-             placeholder="Search for a TV show..."
-             class="flex-1 bg-gray-700 rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
-             hx-get="/api/shows/search"
-             hx-trigger="keyup changed delay:300ms"
-             hx-target="#search-results">
+  <div class="bg-lounge-surface rounded-2xl p-6 border border-lounge-border">
+    <div class="flex items-center gap-3 mb-5">
+      <div class="w-10 h-10 rounded-xl bg-lounge-gold/20 flex items-center justify-center">
+        <svg class="w-5 h-5 text-lounge-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+      </div>
+      <div>
+        <h2 class="font-display text-xl font-semibold text-lounge-cream">Add a Show</h2>
+        <p class="text-sm text-lounge-muted">Search for TV shows to add to your collection</p>
+      </div>
     </div>
+    <input type="text"
+           id="show-search"
+           name="query"
+           placeholder="Search for a TV show..."
+           class="w-full px-4 py-3 rounded-xl"
+           hx-get="/api/shows/search"
+           hx-trigger="keyup changed delay:300ms"
+           hx-target="#search-results">
     <div id="search-results" class="mt-4"></div>
   </div>
 
   <%
-    // Helper to convert day number to name
     const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    function formatDays(assignments) {
-      if (!assignments || assignments.length === 0) return 'No days assigned';
-      return assignments.map(a => dayNames[a.dayOfWeek]).sort((a, b) => {
-        return dayNames.indexOf(a) - dayNames.indexOf(b);
-      }).join(', ');
-    }
   %>
 
   <!-- Currently Watching -->
-  <div class="space-y-4">
-    <h2 class="text-lg font-semibold text-green-400">Currently Watching</h2>
+  <section class="space-y-5">
+    <div class="flex items-center gap-3">
+      <div class="w-3 h-3 rounded-full bg-lounge-watching"></div>
+      <h2 class="font-display text-2xl font-semibold text-lounge-cream">Currently Watching</h2>
+      <span class="text-lounge-muted text-sm">(<%= watching.length %> shows)</span>
+    </div>
 
     <% if (watching.length === 0) { %>
-    <p class="text-gray-400">No shows currently in rotation. Promote a show from your queue to start watching!</p>
+    <div class="bg-lounge-surface rounded-2xl p-8 text-center border border-lounge-border">
+      <p class="text-lounge-muted">No shows currently in rotation. Promote a show from your queue to start watching!</p>
+    </div>
     <% } else { %>
-    <div class="space-y-2" id="watching-items">
-      <% watching.forEach((entry) => { %>
-      <div class="bg-gray-800 rounded-lg p-4 border-l-4 border-green-500">
-        <div class="flex gap-4 items-center">
+    <div class="grid gap-4">
+      <% watching.forEach((entry, index) => { %>
+      <div class="bg-lounge-surface rounded-2xl p-5 card-hover status-watching" style="animation-delay: <%= index * 50 %>ms">
+        <div class="flex gap-5">
+          <!-- Poster -->
           <% if (entry.show.posterPath) { %>
-          <img src="https://image.tmdb.org/t/p/w92<%= entry.show.posterPath %>"
+          <img src="https://image.tmdb.org/t/p/w154<%= entry.show.posterPath %>"
                alt="<%= entry.show.title %>"
-               class="w-12 rounded">
+               class="poster-img w-20 h-[120px] object-cover flex-shrink-0">
           <% } else { %>
-          <div class="w-12 h-18 bg-gray-700 rounded flex items-center justify-center text-gray-500 text-xs">No img</div>
+          <div class="w-20 h-[120px] rounded-lg bg-lounge-card flex items-center justify-center flex-shrink-0">
+            <svg class="w-8 h-8 text-lounge-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            </svg>
+          </div>
           <% } %>
-          <div class="flex-1">
-            <h3 class="font-semibold">
-              <%= entry.show.title %>
-              <% if (entry.show.status === 'Returning Series') { %>
-              <span class="text-xs text-blue-400 ml-1">● Returning</span>
-              <% } else if (entry.show.status === 'Ended') { %>
-              <span class="text-xs text-gray-500 ml-1">● Ended</span>
-              <% } %>
-            </h3>
-            <p class="text-sm text-gray-400">
-              <span class="cursor-pointer hover:text-purple-400" onclick="toggleEpisodeEdit(<%= entry.id %>)">
-                S<%= entry.currentSeason %>E<%= entry.currentEpisode %> ✏️
-              </span>
-              of <%= entry.show.totalSeasons %> seasons (<%= entry.show.totalEpisodes %> eps)
-              &middot; <%= entry.show.episodeRuntime %>min
-            </p>
-            <!-- Episode Edit Form (hidden by default) -->
-            <div id="episode-form-<%= entry.id %>" class="hidden mt-2 flex gap-2 items-center">
-              <label class="text-xs text-gray-400">S:</label>
-              <input type="number" id="season-<%= entry.id %>" value="<%= entry.currentSeason %>" min="1"
-                     class="w-12 bg-gray-700 rounded px-2 py-1 text-sm">
-              <label class="text-xs text-gray-400">E:</label>
-              <input type="number" id="episode-<%= entry.id %>" value="<%= entry.currentEpisode %>" min="1"
-                     class="w-12 bg-gray-700 rounded px-2 py-1 text-sm">
-              <button type="button" onclick="event.stopPropagation(); updateEpisode(<%= entry.id %>)"
-                      class="bg-purple-600 hover:bg-purple-700 px-2 py-1 rounded text-xs">Save</button>
-              <button type="button" onclick="event.stopPropagation(); toggleEpisodeEdit(<%= entry.id %>)"
-                      class="text-gray-400 hover:text-gray-300 text-xs">Cancel</button>
+
+          <!-- Info -->
+          <div class="flex-1 min-w-0">
+            <div class="flex items-start justify-between gap-4">
+              <div>
+                <h3 class="font-display text-lg font-semibold text-lounge-cream">
+                  <%= entry.show.title %>
+                </h3>
+                <div class="flex items-center gap-2 mt-1">
+                  <% if (entry.show.status === 'Returning Series') { %>
+                  <span class="text-xs px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400">Returning</span>
+                  <% } else if (entry.show.status === 'Ended') { %>
+                  <span class="text-xs px-2 py-0.5 rounded-full bg-lounge-card text-lounge-muted">Ended</span>
+                  <% } %>
+                </div>
+              </div>
+
+              <!-- Actions -->
+              <div class="flex items-center gap-2 flex-shrink-0">
+                <button type="button"
+                        hx-post="/api/watchlist/<%= entry.id %>/demote"
+                        hx-swap="none"
+                        hx-confirm="Move this show back to queue?"
+                        hx-on::after-request="location.reload()"
+                        class="text-xs px-3 py-1.5 rounded-lg bg-lounge-card text-lounge-queue hover:bg-lounge-queue hover:text-lounge-bg transition-colors">
+                  Demote
+                </button>
+                <button type="button"
+                        hx-post="/api/watchlist/<%= entry.id %>/finish"
+                        hx-swap="none"
+                        hx-confirm="Mark this show as finished?"
+                        hx-on::after-request="location.reload()"
+                        class="text-xs px-3 py-1.5 rounded-lg bg-lounge-card text-lounge-watching hover:bg-lounge-watching hover:text-lounge-bg transition-colors">
+                  Finish
+                </button>
+                <button type="button"
+                        hx-delete="/api/watchlist/<%= entry.id %>"
+                        hx-target="closest div.bg-lounge-surface"
+                        hx-swap="outerHTML"
+                        hx-confirm="Remove this show?"
+                        class="text-xs px-3 py-1.5 rounded-lg bg-lounge-card text-red-400 hover:bg-red-400 hover:text-lounge-bg transition-colors">
+                  Remove
+                </button>
+              </div>
+            </div>
+
+            <!-- Progress -->
+            <div class="mt-3">
+              <p class="text-sm text-lounge-muted">
+                <span class="cursor-pointer hover:text-lounge-gold transition-colors" onclick="toggleEpisodeEdit(<%= entry.id %>)">
+                  S<%= entry.currentSeason %>E<%= entry.currentEpisode %>
+                  <svg class="w-3 h-3 inline ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                  </svg>
+                </span>
+                <span class="text-lounge-border mx-2">|</span>
+                <%= entry.show.totalSeasons %> seasons (<%= entry.show.totalEpisodes %> eps)
+                <span class="text-lounge-border mx-2">|</span>
+                <%= entry.show.episodeRuntime %> min
+              </p>
+
+              <!-- Episode Edit Form -->
+              <div id="episode-form-<%= entry.id %>" class="hidden mt-3 flex items-center gap-3">
+                <label class="text-xs text-lounge-muted">S:</label>
+                <input type="number" id="season-<%= entry.id %>" value="<%= entry.currentSeason %>" min="1"
+                       class="w-14 px-2 py-1 text-sm rounded-lg">
+                <label class="text-xs text-lounge-muted">E:</label>
+                <input type="number" id="episode-<%= entry.id %>" value="<%= entry.currentEpisode %>" min="1"
+                       class="w-14 px-2 py-1 text-sm rounded-lg">
+                <button type="button" onclick="event.stopPropagation(); updateEpisode(<%= entry.id %>)"
+                        class="btn-gold px-3 py-1 rounded-lg text-xs">Save</button>
+                <button type="button" onclick="event.stopPropagation(); toggleEpisodeEdit(<%= entry.id %>)"
+                        class="text-lounge-muted hover:text-lounge-cream text-xs">Cancel</button>
+              </div>
+            </div>
+
+            <!-- Day Selection -->
+            <div class="mt-4 pt-4 border-t border-lounge-border">
+              <span class="text-xs text-lounge-muted mr-3">Schedule days:</span>
+              <%
+                const entryDays = entry.dayAssignments.map(a => a.dayOfWeek);
+                dayNames.forEach((day, idx) => {
+              %>
+              <label class="inline-flex items-center mr-1 cursor-pointer">
+                <input type="checkbox"
+                       class="day-checkbox-<%= entry.id %> sr-only peer"
+                       value="<%= idx %>"
+                       <%= entryDays.includes(idx) ? 'checked' : '' %>
+                       onchange="updateDays(<%= entry.id %>)">
+                <span class="px-2.5 py-1 text-xs rounded-lg transition-all
+                             peer-checked:bg-lounge-gold peer-checked:text-lounge-bg
+                             bg-lounge-card text-lounge-muted hover:bg-lounge-border">
+                  <%= day %>
+                </span>
+              </label>
+              <% }) %>
             </div>
           </div>
-          <div class="flex gap-2">
-            <button type="button"
-                    hx-post="/api/watchlist/<%= entry.id %>/demote"
-                    hx-swap="none"
-                    hx-confirm="Move this show back to queue?"
-                    hx-on::after-request="location.reload()"
-                    class="text-yellow-400 hover:text-yellow-300 text-sm">
-              Demote
-            </button>
-            <button type="button"
-                    hx-post="/api/watchlist/<%= entry.id %>/finish"
-                    hx-swap="none"
-                    hx-confirm="Mark this show as finished?"
-                    hx-on::after-request="location.reload()"
-                    class="text-green-400 hover:text-green-300 text-sm">
-              Finish
-            </button>
-            <button type="button"
-                    hx-delete="/api/watchlist/<%= entry.id %>"
-                    hx-target="closest div.bg-gray-800"
-                    hx-swap="outerHTML"
-                    hx-confirm="Remove this show?"
-                    class="text-red-400 hover:text-red-300">
-              Remove
-            </button>
-          </div>
-        </div>
-        <!-- Day Selection -->
-        <div class="mt-3 pt-3 border-t border-gray-700">
-          <span class="text-xs text-gray-400 mr-2">Days:</span>
-          <%
-            const entryDays = entry.dayAssignments.map(a => a.dayOfWeek);
-            dayNames.forEach((day, idx) => {
-          %>
-          <label class="inline-flex items-center mr-2 cursor-pointer">
-            <input type="checkbox"
-                   class="day-checkbox-<%= entry.id %> sr-only peer"
-                   value="<%= idx %>"
-                   <%= entryDays.includes(idx) ? 'checked' : '' %>
-                   onchange="updateDays(<%= entry.id %>)">
-            <span class="px-2 py-1 text-xs rounded
-                         peer-checked:bg-purple-600 peer-checked:text-white
-                         bg-gray-700 text-gray-400 hover:bg-gray-600">
-              <%= day %>
-            </span>
-          </label>
-          <% }) %>
         </div>
       </div>
       <% }) %>
     </div>
     <% } %>
-  </div>
+  </section>
 
   <!-- Queue -->
-  <div class="space-y-4">
-    <h2 class="text-lg font-semibold text-yellow-400">Queue</h2>
+  <section class="space-y-5">
+    <div class="flex items-center gap-3">
+      <div class="w-3 h-3 rounded-full bg-lounge-queue"></div>
+      <h2 class="font-display text-2xl font-semibold text-lounge-cream">Queue</h2>
+      <span class="text-lounge-muted text-sm">(<%= queued.length %> shows)</span>
+    </div>
 
     <% if (queued.length === 0) { %>
-    <p class="text-gray-400">Your queue is empty. Search for shows above to add them!</p>
+    <div class="bg-lounge-surface rounded-2xl p-8 text-center border border-lounge-border">
+      <p class="text-lounge-muted">Your queue is empty. Search for shows above to add them!</p>
+    </div>
     <% } else { %>
-    <div class="space-y-2" id="queue-items">
+    <div class="grid gap-4">
       <% queued.forEach((entry, index) => { %>
-      <div class="bg-gray-800 rounded-lg p-4 border-l-4 border-yellow-500">
-        <div class="flex gap-4 items-center">
-          <span class="text-2xl font-bold text-gray-600 w-8"><%= index + 1 %></span>
-          <% if (entry.show.posterPath) { %>
-          <img src="https://image.tmdb.org/t/p/w92<%= entry.show.posterPath %>"
-               alt="<%= entry.show.title %>"
-               class="w-12 rounded">
-          <% } else { %>
-          <div class="w-12 h-18 bg-gray-700 rounded flex items-center justify-center text-gray-500 text-xs">No img</div>
-          <% } %>
-          <div class="flex-1">
-            <h3 class="font-semibold">
-              <%= entry.show.title %>
-              <% if (entry.show.status === 'Returning Series') { %>
-              <span class="text-xs text-blue-400 ml-1">● Returning</span>
-              <% } else if (entry.show.status === 'Ended') { %>
-              <span class="text-xs text-gray-500 ml-1">● Ended</span>
-              <% } %>
-              <span id="availability-<%= entry.id %>"
-                    class="hidden text-xs text-yellow-400 ml-1">
-              </span>
-            </h3>
-            <p class="text-sm text-gray-400">
-              <span class="cursor-pointer hover:text-purple-400" onclick="toggleEpisodeEdit(<%= entry.id %>)">
-                Start at S<%= entry.currentSeason %>E<%= entry.currentEpisode %> ✏️
-              </span>
-              &middot; <%= entry.show.totalSeasons %> seasons (<%= entry.show.totalEpisodes %> eps)
-              &middot; <%= entry.show.episodeRuntime %>min
-            </p>
-            <!-- Episode Edit Form (hidden by default) -->
-            <div id="episode-form-<%= entry.id %>" class="hidden mt-2 flex gap-2 items-center">
-              <label class="text-xs text-gray-400">S:</label>
-              <input type="number" id="season-<%= entry.id %>" value="<%= entry.currentSeason %>" min="1"
-                     class="w-12 bg-gray-700 rounded px-2 py-1 text-sm">
-              <label class="text-xs text-gray-400">E:</label>
-              <input type="number" id="episode-<%= entry.id %>" value="<%= entry.currentEpisode %>" min="1"
-                     class="w-12 bg-gray-700 rounded px-2 py-1 text-sm">
-              <button type="button" onclick="event.stopPropagation(); updateEpisode(<%= entry.id %>)"
-                      class="bg-purple-600 hover:bg-purple-700 px-2 py-1 rounded text-xs">Save</button>
-              <button type="button" onclick="event.stopPropagation(); toggleEpisodeEdit(<%= entry.id %>)"
-                      class="text-gray-400 hover:text-gray-300 text-xs">Cancel</button>
-            </div>
+      <div class="bg-lounge-surface rounded-2xl p-5 card-hover status-queue" style="animation-delay: <%= index * 50 %>ms">
+        <div class="flex gap-5">
+          <!-- Queue Number -->
+          <div class="flex-shrink-0 w-10 h-10 rounded-xl bg-lounge-card flex items-center justify-center">
+            <span class="font-display text-lg text-lounge-queue"><%= index + 1 %></span>
           </div>
-          <div class="flex gap-2">
-            <button type="button"
-                    hx-post="/api/watchlist/<%= entry.id %>/promote"
-                    hx-swap="none"
-                    hx-on::after-request="if(event.detail.failed) { alert(JSON.parse(event.detail.xhr.responseText).error); } else { location.reload(); }"
-                    class="bg-purple-600 hover:bg-purple-700 px-3 py-1 rounded text-sm">
-              Promote
-            </button>
-            <button type="button"
-                    hx-delete="/api/watchlist/<%= entry.id %>"
-                    hx-target="closest div.bg-gray-800"
-                    hx-swap="outerHTML"
-                    hx-confirm="Remove this show?"
-                    class="text-red-400 hover:text-red-300">
-              Remove
-            </button>
+
+          <!-- Poster -->
+          <% if (entry.show.posterPath) { %>
+          <img src="https://image.tmdb.org/t/p/w154<%= entry.show.posterPath %>"
+               alt="<%= entry.show.title %>"
+               class="poster-img w-16 h-24 object-cover flex-shrink-0">
+          <% } else { %>
+          <div class="w-16 h-24 rounded-lg bg-lounge-card flex items-center justify-center flex-shrink-0">
+            <svg class="w-6 h-6 text-lounge-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            </svg>
+          </div>
+          <% } %>
+
+          <!-- Info -->
+          <div class="flex-1 min-w-0">
+            <div class="flex items-start justify-between gap-4">
+              <div>
+                <h3 class="font-display text-lg font-semibold text-lounge-cream">
+                  <%= entry.show.title %>
+                </h3>
+                <div class="flex items-center gap-2 mt-1">
+                  <% if (entry.show.status === 'Returning Series') { %>
+                  <span class="text-xs px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400">Returning</span>
+                  <% } else if (entry.show.status === 'Ended') { %>
+                  <span class="text-xs px-2 py-0.5 rounded-full bg-lounge-card text-lounge-muted">Ended</span>
+                  <% } %>
+                  <span id="availability-<%= entry.id %>" class="hidden text-xs px-2 py-0.5 rounded-full bg-lounge-queue/20 text-lounge-queue"></span>
+                </div>
+              </div>
+
+              <!-- Actions -->
+              <div class="flex items-center gap-2 flex-shrink-0">
+                <button type="button"
+                        hx-post="/api/watchlist/<%= entry.id %>/promote"
+                        hx-swap="none"
+                        hx-on::after-request="if(event.detail.failed) { alert(JSON.parse(event.detail.xhr.responseText).error); } else { location.reload(); }"
+                        class="btn-gold px-4 py-1.5 rounded-lg text-xs">
+                  Promote
+                </button>
+                <button type="button"
+                        hx-delete="/api/watchlist/<%= entry.id %>"
+                        hx-target="closest div.bg-lounge-surface"
+                        hx-swap="outerHTML"
+                        hx-confirm="Remove this show?"
+                        class="text-xs px-3 py-1.5 rounded-lg bg-lounge-card text-red-400 hover:bg-red-400 hover:text-lounge-bg transition-colors">
+                  Remove
+                </button>
+              </div>
+            </div>
+
+            <!-- Progress -->
+            <div class="mt-3">
+              <p class="text-sm text-lounge-muted">
+                <span class="cursor-pointer hover:text-lounge-gold transition-colors" onclick="toggleEpisodeEdit(<%= entry.id %>)">
+                  Start at S<%= entry.currentSeason %>E<%= entry.currentEpisode %>
+                  <svg class="w-3 h-3 inline ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                  </svg>
+                </span>
+                <span class="text-lounge-border mx-2">|</span>
+                <%= entry.show.totalSeasons %> seasons (<%= entry.show.totalEpisodes %> eps)
+                <span class="text-lounge-border mx-2">|</span>
+                <%= entry.show.episodeRuntime %> min
+              </p>
+
+              <!-- Episode Edit Form -->
+              <div id="episode-form-<%= entry.id %>" class="hidden mt-3 flex items-center gap-3">
+                <label class="text-xs text-lounge-muted">S:</label>
+                <input type="number" id="season-<%= entry.id %>" value="<%= entry.currentSeason %>" min="1"
+                       class="w-14 px-2 py-1 text-sm rounded-lg">
+                <label class="text-xs text-lounge-muted">E:</label>
+                <input type="number" id="episode-<%= entry.id %>" value="<%= entry.currentEpisode %>" min="1"
+                       class="w-14 px-2 py-1 text-sm rounded-lg">
+                <button type="button" onclick="event.stopPropagation(); updateEpisode(<%= entry.id %>)"
+                        class="btn-gold px-3 py-1 rounded-lg text-xs">Save</button>
+                <button type="button" onclick="event.stopPropagation(); toggleEpisodeEdit(<%= entry.id %>)"
+                        class="text-lounge-muted hover:text-lounge-cream text-xs">Cancel</button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
       <% }) %>
     </div>
     <% } %>
-  </div>
+  </section>
 </div>

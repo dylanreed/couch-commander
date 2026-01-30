@@ -4,26 +4,197 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title><%= title %> | Couch Commander</title>
+
+  <!-- Google Fonts: Playfair Display + Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
   <link rel="stylesheet" href="/css/styles.css">
   <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+
+  <style>
+    /* Evening Lounge - Custom Styles */
+    :root {
+      --lounge-bg: #13111a;
+      --lounge-surface: #1e1b2e;
+      --lounge-card: #252236;
+      --lounge-border: #3d3654;
+      --lounge-cream: #f8f5f0;
+      --lounge-muted: #9a8eb0;
+      --lounge-gold: #c9a87c;
+      --lounge-gold-dim: #a08560;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: var(--lounge-bg);
+      background-image:
+        radial-gradient(ellipse at top, rgba(201, 168, 124, 0.03) 0%, transparent 50%),
+        radial-gradient(ellipse at bottom right, rgba(147, 51, 234, 0.02) 0%, transparent 50%);
+      min-height: 100vh;
+    }
+
+    /* Subtle grain texture overlay */
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0.015;
+      pointer-events: none;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    }
+
+    .font-display {
+      font-family: 'Playfair Display', serif;
+    }
+
+    /* Card hover effect - warm glow */
+    .card-hover {
+      transition: all 0.3s ease;
+    }
+    .card-hover:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px rgba(201, 168, 124, 0.1);
+    }
+
+    /* Gold accent button */
+    .btn-gold {
+      background: linear-gradient(135deg, var(--lounge-gold) 0%, var(--lounge-gold-dim) 100%);
+      color: var(--lounge-bg);
+      font-weight: 600;
+      transition: all 0.2s ease;
+    }
+    .btn-gold:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 15px rgba(201, 168, 124, 0.3);
+    }
+
+    /* Status border accents */
+    .status-watching {
+      border-left: 3px solid #6ee7b7;
+    }
+    .status-queue {
+      border-left: 3px solid #fcd34d;
+    }
+    .status-finished {
+      border-left: 3px solid #94a3b8;
+    }
+
+    /* Poster image styling */
+    .poster-img {
+      border-radius: 8px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    }
+
+    /* Navigation link styling */
+    .nav-link {
+      position: relative;
+      color: var(--lounge-muted);
+      transition: color 0.2s ease;
+    }
+    .nav-link:hover, .nav-link.active {
+      color: var(--lounge-gold);
+    }
+    .nav-link::after {
+      content: '';
+      position: absolute;
+      bottom: -4px;
+      left: 0;
+      width: 0;
+      height: 2px;
+      background: var(--lounge-gold);
+      transition: width 0.2s ease;
+    }
+    .nav-link:hover::after, .nav-link.active::after {
+      width: 100%;
+    }
+
+    /* Day pill buttons */
+    .day-pill {
+      transition: all 0.2s ease;
+    }
+    .day-pill-active {
+      background: var(--lounge-gold);
+      color: var(--lounge-bg);
+    }
+
+    /* Fade in animation */
+    .animate-fade-in {
+      animation: fadeIn 0.5s ease-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Input styling */
+    input[type="text"], input[type="number"], select {
+      background: var(--lounge-card);
+      border: 1px solid var(--lounge-border);
+      color: var(--lounge-cream);
+      border-radius: 8px;
+      transition: all 0.2s ease;
+    }
+    input[type="text"]:focus, input[type="number"]:focus, select:focus {
+      outline: none;
+      border-color: var(--lounge-gold);
+      box-shadow: 0 0 0 3px rgba(201, 168, 124, 0.1);
+    }
+
+    /* Scrollbar styling */
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: var(--lounge-surface);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: var(--lounge-border);
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--lounge-muted);
+    }
+  </style>
 </head>
-<body class="bg-gray-900 text-gray-100 min-h-screen">
-  <nav class="bg-gray-800 border-b border-gray-700">
-    <div class="max-w-7xl mx-auto px-4 py-3">
+<body class="text-lounge-cream">
+  <!-- Navigation -->
+  <nav class="bg-lounge-surface/80 backdrop-blur-sm border-b border-lounge-border sticky top-0 z-50">
+    <div class="max-w-6xl mx-auto px-6 py-4">
       <div class="flex items-center justify-between">
-        <a href="/" class="text-xl font-bold text-purple-400">Couch Commander</a>
-        <div class="flex gap-4">
-          <a href="/" class="hover:text-purple-400">Dashboard</a>
-          <a href="/watchlist" class="hover:text-purple-400">Watchlist</a>
-          <a href="/schedule" class="hover:text-purple-400">Schedule</a>
-          <a href="/settings" class="hover:text-purple-400">Settings</a>
+        <!-- Logo -->
+        <a href="/" class="flex items-center gap-3 group">
+          <img src="/logo.png" alt="Couch Commander" class="w-10 h-10" style="image-rendering: pixelated;">
+          <span class="font-display text-xl font-semibold text-lounge-cream group-hover:text-lounge-gold transition-colors">
+            Couch Commander
+          </span>
+        </a>
+
+        <!-- Nav Links -->
+        <div class="flex items-center gap-8">
+          <a href="/" class="nav-link font-medium">Tonight</a>
+          <a href="/watchlist" class="nav-link font-medium">My Shows</a>
+          <a href="/schedule" class="nav-link font-medium">Schedule</a>
+          <a href="/settings" class="nav-link font-medium">Settings</a>
         </div>
       </div>
     </div>
   </nav>
 
-  <main class="max-w-7xl mx-auto px-4 py-8">
+  <!-- Main Content -->
+  <main class="max-w-6xl mx-auto px-6 py-10 animate-fade-in">
     <%- body %>
   </main>
+
+  <!-- Footer -->
+  <footer class="border-t border-lounge-border mt-auto">
+    <div class="max-w-6xl mx-auto px-6 py-6 text-center text-lounge-muted text-sm">
+      <p>Couch Commander &middot; Your personal TV concierge</p>
+    </div>
+  </footer>
 </body>
 </html>

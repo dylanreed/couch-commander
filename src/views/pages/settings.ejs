@@ -1,34 +1,50 @@
-<div class="space-y-8">
-  <h1 class="text-3xl font-bold">Settings</h1>
+<div class="space-y-10">
+  <!-- Header -->
+  <div class="text-center space-y-2">
+    <h1 class="font-display text-4xl font-semibold text-lounge-cream">Settings</h1>
+    <p class="text-lounge-muted">Customize your viewing experience</p>
+  </div>
 
-  <form hx-post="/settings" hx-swap="none" hx-on::after-request="alert('Settings saved!')">
+  <form hx-post="/settings" hx-swap="none" hx-on::after-request="alert('Settings saved!')" class="max-w-2xl mx-auto space-y-6">
     <!-- Time Budgets -->
-    <div class="bg-gray-800 rounded-lg p-4 space-y-4">
-      <h2 class="text-lg font-semibold">Daily Time Budgets</h2>
+    <div class="bg-lounge-surface rounded-2xl p-6 space-y-5">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-lounge-gold/20 flex items-center justify-center">
+          <svg class="w-4 h-4 text-lounge-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <h2 class="font-display text-xl font-semibold text-lounge-cream">Daily Time Budgets</h2>
+      </div>
 
       <div class="grid grid-cols-2 gap-4">
         <div>
-          <label class="block text-sm text-gray-400 mb-1">Weekday (minutes)</label>
+          <label class="block text-sm text-lounge-muted mb-2">Weekday (minutes)</label>
           <input type="number" name="weekdayMinutes" value="<%= settings.weekdayMinutes %>"
-                 class="w-full bg-gray-700 rounded px-3 py-2">
+                 class="w-full px-4 py-2.5">
         </div>
         <div>
-          <label class="block text-sm text-gray-400 mb-1">Weekend (minutes)</label>
+          <label class="block text-sm text-lounge-muted mb-2">Weekend (minutes)</label>
           <input type="number" name="weekendMinutes" value="<%= settings.weekendMinutes %>"
-                 class="w-full bg-gray-700 rounded px-3 py-2">
+                 class="w-full px-4 py-2.5">
         </div>
       </div>
 
-      <details class="mt-4">
-        <summary class="cursor-pointer text-purple-400">Day-specific overrides</summary>
-        <div class="grid grid-cols-2 gap-4 mt-4">
+      <details class="mt-4 group">
+        <summary class="cursor-pointer text-lounge-gold flex items-center gap-2">
+          <svg class="w-4 h-4 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+          </svg>
+          Day-specific overrides
+        </summary>
+        <div class="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-lounge-border">
           <% ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].forEach(day => { %>
           <div>
-            <label class="block text-sm text-gray-400 mb-1 capitalize"><%= day %> (optional)</label>
+            <label class="block text-sm text-lounge-muted mb-2 capitalize"><%= day %></label>
             <input type="number" name="<%= day %>Minutes"
                    value="<%= settings[day + 'Minutes'] || '' %>"
                    placeholder="Use default"
-                   class="w-full bg-gray-700 rounded px-3 py-2">
+                   class="w-full px-4 py-2.5">
           </div>
           <% }) %>
         </div>
@@ -36,50 +52,79 @@
     </div>
 
     <!-- Scheduling Mode -->
-    <div class="bg-gray-800 rounded-lg p-4 space-y-4 mt-4">
-      <h2 class="text-lg font-semibold">Scheduling Mode</h2>
+    <div class="bg-lounge-surface rounded-2xl p-6 space-y-5">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-lounge-gold/20 flex items-center justify-center">
+          <svg class="w-4 h-4 text-lounge-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+          </svg>
+        </div>
+        <h2 class="font-display text-xl font-semibold text-lounge-cream">Scheduling Mode</h2>
+      </div>
 
-      <div class="space-y-2">
-        <label class="flex items-center gap-2">
+      <div class="space-y-3">
+        <label class="flex items-start gap-3 bg-lounge-card rounded-xl p-4 cursor-pointer hover:bg-lounge-card/80 transition-colors">
           <input type="radio" name="schedulingMode" value="sequential"
+                 class="mt-1 accent-lounge-gold"
                  <%= settings.schedulingMode === 'sequential' ? 'checked' : '' %>>
-          <span>Sequential</span>
-          <span class="text-sm text-gray-400">- Watch one show at a time until finished</span>
+          <div>
+            <span class="font-medium text-lounge-cream">Sequential</span>
+            <p class="text-sm text-lounge-muted mt-0.5">Watch one show at a time until finished</p>
+          </div>
         </label>
-        <label class="flex items-center gap-2">
+        <label class="flex items-start gap-3 bg-lounge-card rounded-xl p-4 cursor-pointer hover:bg-lounge-card/80 transition-colors">
           <input type="radio" name="schedulingMode" value="roundrobin"
+                 class="mt-1 accent-lounge-gold"
                  <%= settings.schedulingMode === 'roundrobin' ? 'checked' : '' %>>
-          <span>Round-robin</span>
-          <span class="text-sm text-gray-400">- Rotate through all shows</span>
+          <div>
+            <span class="font-medium text-lounge-cream">Round-robin</span>
+            <p class="text-sm text-lounge-muted mt-0.5">Rotate through all shows</p>
+          </div>
         </label>
-        <label class="flex items-center gap-2">
+        <label class="flex items-start gap-3 bg-lounge-card rounded-xl p-4 cursor-pointer hover:bg-lounge-card/80 transition-colors">
           <input type="radio" name="schedulingMode" value="genre"
+                 class="mt-1 accent-lounge-gold"
                  <%= settings.schedulingMode === 'genre' ? 'checked' : '' %>>
-          <span>Genre-based</span>
-          <span class="text-sm text-gray-400">- Schedule based on genre rules</span>
+          <div>
+            <span class="font-medium text-lounge-cream">Genre-based</span>
+            <p class="text-sm text-lounge-muted mt-0.5">Schedule based on genre rules</p>
+          </div>
         </label>
       </div>
     </div>
 
     <!-- Staggered Start -->
-    <div class="bg-gray-800 rounded-lg p-4 space-y-4 mt-4">
-      <h2 class="text-lg font-semibold">Staggered Start</h2>
+    <div class="bg-lounge-surface rounded-2xl p-6 space-y-5">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-lounge-gold/20 flex items-center justify-center">
+          <svg class="w-4 h-4 text-lounge-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+          </svg>
+        </div>
+        <h2 class="font-display text-xl font-semibold text-lounge-cream">Staggered Start</h2>
+      </div>
 
-      <label class="flex items-center gap-2">
+      <label class="flex items-center gap-3 bg-lounge-card rounded-xl p-4 cursor-pointer">
         <input type="checkbox" name="staggeredStart" value="true"
+               class="accent-lounge-gold w-5 h-5"
                <%= settings.staggeredStart ? 'checked' : '' %>>
-        <span>Enable staggered start</span>
+        <div>
+          <span class="font-medium text-lounge-cream">Enable staggered start</span>
+          <p class="text-sm text-lounge-muted mt-0.5">Don't start the next show until you've made progress on the current one</p>
+        </div>
       </label>
 
       <div class="<%= !settings.staggeredStart ? 'opacity-50' : '' %>">
-        <label class="block text-sm text-gray-400 mb-1">Episodes before starting next show</label>
+        <label class="block text-sm text-lounge-muted mb-2">Episodes before starting next show</label>
         <input type="number" name="staggerEpisodes" value="<%= settings.staggerEpisodes %>"
-               class="w-32 bg-gray-700 rounded px-3 py-2">
+               class="w-32 px-4 py-2.5">
       </div>
     </div>
 
-    <button type="submit" class="mt-6 bg-purple-600 hover:bg-purple-700 px-6 py-2 rounded">
-      Save Settings
-    </button>
+    <div class="text-center pt-4">
+      <button type="submit" class="btn-gold px-8 py-3 rounded-xl text-lg">
+        Save Settings
+      </button>
+    </div>
   </form>
 </div>

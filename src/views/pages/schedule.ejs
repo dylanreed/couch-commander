@@ -1,20 +1,24 @@
-<div class="space-y-8">
-  <h1 class="text-3xl font-bold">Weekly Schedule</h1>
+<div class="space-y-10">
+  <!-- Header -->
+  <div class="text-center space-y-2">
+    <h1 class="font-display text-4xl font-semibold text-lounge-cream">Weekly Schedule</h1>
+    <p class="text-lounge-muted">Your viewing plan at a glance</p>
+  </div>
 
   <div class="grid gap-4">
     <% days.forEach(day => { %>
-    <div class="bg-gray-800 rounded-lg p-4">
-      <div class="flex justify-between items-center mb-3">
-        <h2 class="font-semibold">
+    <div class="bg-lounge-surface rounded-2xl p-5 card-hover">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="font-display text-xl font-semibold text-lounge-cream">
           <%= day.date.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }) %>
           <% if (day.isToday) { %>
-          <span class="text-purple-400 text-sm ml-2">Today</span>
+          <span class="text-lounge-gold text-sm ml-2 font-body font-normal">Today</span>
           <% } %>
         </h2>
-        <div class="text-sm text-gray-400">
+        <div class="text-sm text-lounge-muted">
           <span><%= day.capacity.usedMinutes %>/<%= day.capacity.totalMinutes %> min</span>
           <% if (day.capacity.availableMinutes > 0) { %>
-          <span class="text-green-400 ml-2">(+<%= day.capacity.availableMinutes %> available)</span>
+          <span class="text-lounge-watching ml-2">(+<%= day.capacity.availableMinutes %> available)</span>
           <% } else if (day.capacity.availableMinutes < 0) { %>
           <span class="text-red-400 ml-2">(<%= day.capacity.availableMinutes %> over)</span>
           <% } %>
@@ -22,30 +26,38 @@
       </div>
 
       <!-- Capacity Progress Bar -->
-      <div class="mb-3">
-        <div class="h-2 bg-gray-700 rounded-full overflow-hidden">
+      <div class="mb-4">
+        <div class="h-2 bg-lounge-card rounded-full overflow-hidden">
           <% const usedPercent = day.capacity.totalMinutes > 0 ? Math.min(100, (day.capacity.usedMinutes / day.capacity.totalMinutes) * 100) : 0; %>
-          <% const barColor = day.capacity.availableMinutes < 0 ? 'bg-red-500' : (usedPercent > 80 ? 'bg-yellow-500' : 'bg-purple-500'); %>
+          <% const barColor = day.capacity.availableMinutes < 0 ? 'bg-red-400' : (usedPercent > 80 ? 'bg-lounge-queue' : 'bg-lounge-gold'); %>
           <div class="h-full <%= barColor %> transition-all" style="width: <%= usedPercent %>%"></div>
         </div>
       </div>
 
       <% if (day.episodes.length === 0) { %>
-      <p class="text-gray-500 text-sm">No episodes scheduled</p>
+      <p class="text-lounge-muted text-sm italic">No episodes scheduled</p>
       <% } else { %>
       <div class="space-y-2">
         <% day.episodes.forEach(ep => { %>
-        <div class="flex items-center gap-3 text-sm <%= ep.status === 'watched' ? 'opacity-50' : '' %>">
+        <div class="flex items-center gap-3 text-sm bg-lounge-card rounded-xl px-4 py-3 <%= ep.status === 'watched' ? 'opacity-50' : '' %>">
           <% if (ep.status === 'watched') { %>
-          <span class="text-green-400">✓</span>
+          <span class="w-5 h-5 rounded-full bg-lounge-watching/20 flex items-center justify-center">
+            <svg class="w-3 h-3 text-lounge-watching" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            </svg>
+          </span>
           <% } else if (ep.status === 'skipped') { %>
-          <span class="text-yellow-400">○</span>
+          <span class="w-5 h-5 rounded-full bg-lounge-queue/20 flex items-center justify-center">
+            <span class="text-lounge-queue text-xs">○</span>
+          </span>
           <% } else { %>
-          <span class="text-gray-500">•</span>
+          <span class="w-5 h-5 rounded-full bg-lounge-border flex items-center justify-center">
+            <span class="w-1.5 h-1.5 rounded-full bg-lounge-muted"></span>
+          </span>
           <% } %>
-          <span class="flex-1"><%= ep.show.title %></span>
-          <span class="text-gray-400">S<%= ep.season %>E<%= ep.episode %></span>
-          <span class="text-gray-500"><%= ep.runtime %>m</span>
+          <span class="flex-1 text-lounge-cream"><%= ep.show.title %></span>
+          <span class="text-lounge-muted">S<%= ep.season %>E<%= ep.episode %></span>
+          <span class="text-xs px-2 py-0.5 rounded-full bg-lounge-surface text-lounge-muted"><%= ep.runtime %>m</span>
         </div>
         <% }) %>
       </div>
