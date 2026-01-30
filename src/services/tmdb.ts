@@ -160,3 +160,45 @@ export async function getShowDetails(tmdbId: number): Promise<ShowDetails> {
     firstAirDate: data.first_air_date,
   };
 }
+
+export interface EpisodeAvailability {
+  available: boolean;
+  airDate: string | null;
+}
+
+export async function isEpisodeAvailable(
+  tmdbId: number,
+  season: number,
+  episode: number
+): Promise<EpisodeAvailability> {
+  const apiKey = getApiKey();
+  const url = `${TMDB_BASE_URL}/tv/${tmdbId}/season/${season}?api_key=${apiKey}`;
+
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      return { available: false, airDate: null };
+    }
+
+    const data = await response.json();
+    const episodeData = data.episodes?.find(
+      (ep: { episode_number: number }) => ep.episode_number === episode
+    );
+
+    if (!episodeData) {
+      return { available: false, airDate: null };
+    }
+
+    const airDate = episodeData.air_date || null;
+    if (!airDate) {
+      return { available: false, airDate: null };
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+    const available = airDate <= today;
+
+    return { available, airDate };
+  } catch {
+    return { available: false, airDate: null };
+  }
+}
