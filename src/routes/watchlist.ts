@@ -1,8 +1,8 @@
 // ABOUTME: Page route for the watchlist view.
-// ABOUTME: Displays current watchlist with management options.
+// ABOUTME: Displays watching shows and queue with management options.
 
 import { Router, Response } from 'express';
-import { getWatchlist } from '../services/watchlist';
+import { prisma } from '../lib/db';
 
 const router = Router();
 
@@ -21,11 +21,22 @@ function renderWithLayout(
 }
 
 router.get('/', async (_req, res) => {
-  const watchlist = await getWatchlist();
+  const watching = await prisma.watchlistEntry.findMany({
+    where: { status: 'watching' },
+    include: { show: true, dayAssignments: true },
+    orderBy: { priority: 'asc' },
+  });
+
+  const queued = await prisma.watchlistEntry.findMany({
+    where: { status: 'queued' },
+    include: { show: true },
+    orderBy: { priority: 'asc' },
+  });
 
   renderWithLayout(res, 'watchlist', {
     title: 'Watchlist',
-    watchlist,
+    watching,
+    queued,
   });
 });
 

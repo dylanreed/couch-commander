@@ -17,28 +17,41 @@
     <div id="search-results" class="mt-4"></div>
   </div>
 
-  <!-- Current Watchlist -->
-  <div class="space-y-4">
-    <h2 class="text-lg font-semibold">Current Queue</h2>
+  <%
+    // Helper to convert day number to name
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    function formatDays(assignments) {
+      if (!assignments || assignments.length === 0) return 'No days assigned';
+      return assignments.map(a => dayNames[a.dayOfWeek]).sort((a, b) => {
+        return dayNames.indexOf(a) - dayNames.indexOf(b);
+      }).join(', ');
+    }
+  %>
 
-    <% if (watchlist.length === 0) { %>
-    <p class="text-gray-400">Your watchlist is empty. Search for shows above to get started!</p>
+  <!-- Currently Watching -->
+  <div class="space-y-4">
+    <h2 class="text-lg font-semibold text-green-400">Currently Watching</h2>
+
+    <% if (watching.length === 0) { %>
+    <p class="text-gray-400">No shows currently in rotation. Promote a show from your queue to start watching!</p>
     <% } else { %>
-    <div class="space-y-2" id="watchlist-items">
-      <% watchlist.forEach((entry, index) => { %>
-      <div class="bg-gray-800 rounded-lg p-4 flex gap-4 items-center">
-        <span class="text-2xl font-bold text-gray-600 w-8"><%= index + 1 %></span>
+    <div class="space-y-2" id="watching-items">
+      <% watching.forEach((entry) => { %>
+      <div class="bg-gray-800 rounded-lg p-4 flex gap-4 items-center border-l-4 border-green-500">
         <% if (entry.show.posterPath) { %>
         <img src="https://image.tmdb.org/t/p/w92<%= entry.show.posterPath %>"
              alt="<%= entry.show.title %>"
              class="w-12 rounded">
+        <% } else { %>
+        <div class="w-12 h-18 bg-gray-700 rounded flex items-center justify-center text-gray-500 text-xs">No img</div>
         <% } %>
         <div class="flex-1">
           <h3 class="font-semibold"><%= entry.show.title %></h3>
           <p class="text-sm text-gray-400">
-            <%= entry.show.totalEpisodes %> episodes &middot;
-            Currently on S<%= entry.currentSeason %>E<%= entry.currentEpisode %>
+            S<%= entry.currentSeason %>E<%= entry.currentEpisode %> &middot;
+            <%= entry.show.episodeRuntime %>min episodes
           </p>
+          <p class="text-sm text-purple-400"><%= formatDays(entry.dayAssignments) %></p>
         </div>
         <button hx-delete="/api/watchlist/<%= entry.id %>"
                 hx-target="closest div.bg-gray-800"
@@ -46,6 +59,50 @@
                 class="text-red-400 hover:text-red-300">
           Remove
         </button>
+      </div>
+      <% }) %>
+    </div>
+    <% } %>
+  </div>
+
+  <!-- Queue -->
+  <div class="space-y-4">
+    <h2 class="text-lg font-semibold text-yellow-400">Queue</h2>
+
+    <% if (queued.length === 0) { %>
+    <p class="text-gray-400">Your queue is empty. Search for shows above to add them!</p>
+    <% } else { %>
+    <div class="space-y-2" id="queue-items">
+      <% queued.forEach((entry, index) => { %>
+      <div class="bg-gray-800 rounded-lg p-4 flex gap-4 items-center border-l-4 border-yellow-500">
+        <span class="text-2xl font-bold text-gray-600 w-8"><%= index + 1 %></span>
+        <% if (entry.show.posterPath) { %>
+        <img src="https://image.tmdb.org/t/p/w92<%= entry.show.posterPath %>"
+             alt="<%= entry.show.title %>"
+             class="w-12 rounded">
+        <% } else { %>
+        <div class="w-12 h-18 bg-gray-700 rounded flex items-center justify-center text-gray-500 text-xs">No img</div>
+        <% } %>
+        <div class="flex-1">
+          <h3 class="font-semibold"><%= entry.show.title %></h3>
+          <p class="text-sm text-gray-400">
+            <%= entry.show.totalEpisodes %> episodes &middot;
+            <%= entry.show.episodeRuntime %>min each
+          </p>
+        </div>
+        <div class="flex gap-2">
+          <button hx-post="/api/watchlist/<%= entry.id %>/promote"
+                  hx-swap="none"
+                  class="bg-purple-600 hover:bg-purple-700 px-3 py-1 rounded text-sm">
+            Promote
+          </button>
+          <button hx-delete="/api/watchlist/<%= entry.id %>"
+                  hx-target="closest div.bg-gray-800"
+                  hx-swap="outerHTML"
+                  class="text-red-400 hover:text-red-300">
+            Remove
+          </button>
+        </div>
       </div>
       <% }) %>
     </div>
