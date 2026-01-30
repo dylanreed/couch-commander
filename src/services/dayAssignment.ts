@@ -89,3 +89,54 @@ export async function getDayCapacity(dayOfWeek: number): Promise<DayCapacity> {
     availableMinutes: totalMinutes - usedMinutes,
   };
 }
+
+async function getDayGenres(dayOfWeek: number): Promise<string[]> {
+  const assignments = await prisma.showDayAssignment.findMany({
+    where: {
+      dayOfWeek,
+      watchlistEntry: { status: 'watching' },
+    },
+    include: {
+      watchlistEntry: { include: { show: true } },
+    },
+  });
+
+  const genres = assignments.flatMap((a) =>
+    JSON.parse(a.watchlistEntry.show.genres) as string[]
+  );
+
+  return [...new Set(genres)];
+}
+
+export async function findBestDayForShow(
+  runtime: number,
+  genres: string[] = []
+): Promise<number> {
+  const capacities = await Promise.all(
+    [0, 1, 2, 3, 4, 5, 6].map(async (day) => ({
+      day,
+      ...(await getDayCapacity(day)),
+      genres: await getDayGenres(day),
+    }))
+  );
+
+  // Filter to days that can fit the show
+  const viable = capacities.filter((c) => c.availableMinutes >= runtime);
+
+  if (viable.length === 0) {
+    // No single day fits; return day with most space
+    return capacities.sort((a, b) => b.availableMinutes - a.availableMinutes)[0].day;
+  }
+
+  // Score by: available time + genre variety bonus
+  const scored = viable.map((c) => {
+    const genreOverlap = genres.filter((g) => c.genres.includes(g)).length;
+    const varietyBonus = genreOverlap === 0 ? 30 : 0; // Bonus for genre diversity
+    return {
+      ...c,
+      score: c.availableMinutes + varietyBonus,
+    };
+  });
+
+  return scored.sort((a, b) => b.score - a.score)[0].day;
+}

@@ -9,6 +9,7 @@ import {
   removeShowFromDay,
   removeAllAssignments,
   getDayCapacity,
+  findBestDayForShow,
 } from './dayAssignment';
 import { cacheShow } from './showCache';
 import { addToWatchlist, updateWatchlistStatus } from './watchlist';
@@ -90,5 +91,36 @@ describe('Day Assignment Service', () => {
     const capacity = await getDayCapacity(1); // Monday
 
     expect(capacity.totalMinutes).toBe(90);
+  });
+
+  it('finds the best day for a new show based on capacity', async () => {
+    await updateSettings({ weekdayMinutes: 120 });
+
+    // Monday already has a 47-min show
+    const show1 = await cacheShow(1396); // Breaking Bad
+    const entry1 = await addToWatchlist(show1.id);
+    await updateWatchlistStatus(entry1.id, 'watching');
+    await assignShowToDay(entry1.id, 1); // Monday
+
+    // Find best day for a new 48-min show
+    const bestDay = await findBestDayForShow(48);
+
+    // Should pick an empty day over Monday
+    expect(bestDay).not.toBe(1);
+  });
+
+  it('considers genre variety when days have similar capacity', async () => {
+    await updateSettings({ weekdayMinutes: 120 });
+
+    // Monday and Tuesday both empty, add Drama to Monday
+    const show1 = await cacheShow(1396); // Breaking Bad - Drama
+    const entry1 = await addToWatchlist(show1.id);
+    await updateWatchlistStatus(entry1.id, 'watching');
+    await assignShowToDay(entry1.id, 1); // Monday
+
+    // New Drama show should prefer Tuesday (no drama) over Monday (has drama)
+    const bestDay = await findBestDayForShow(45, ['Drama']);
+
+    expect(bestDay).not.toBe(1); // Should avoid Monday which has Drama
   });
 });
