@@ -208,4 +208,4 @@ MIT
 
 ---
 
-Built with ☕ and 📺 by [Your Name]
+Built with ☕ and 📺 by Dylan
