@@ -7,11 +7,11 @@
     "doc": "docs"
   },
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "doppler run -- tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "test": "vitest run",
-    "test:watch": "vitest",
+    "test": "doppler run -- vitest run",
+    "test:watch": "doppler run -- vitest",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
