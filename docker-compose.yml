@@ -3,7 +3,7 @@
 
 services:
   couch-commander:
-    build: .
+    image: ghcr.io/dylanreed/couch-commander:latest
     container_name: couch-commander
     restart: unless-stopped
     ports:
