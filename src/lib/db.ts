@@ -8,10 +8,16 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 if (!globalForPrisma.prisma) {
-  globalForPrisma.prisma = new PrismaClient();
+  globalForPrisma.prisma = new PrismaClient({
+    // Increase Prisma-level query timeout for slow NAS filesystems
+    transactionOptions: {
+      timeout: 15000,
+    },
+  });
 
-  // Set SQLite busy timeout so concurrent reads don't immediately fail
-  globalForPrisma.prisma.$queryRawUnsafe('PRAGMA busy_timeout = 5000;')
+  // Set SQLite busy timeout so concurrent reads don't immediately fail.
+  // 15s accommodates slow NAS-attached storage.
+  globalForPrisma.prisma.$queryRawUnsafe('PRAGMA busy_timeout = 15000;')
     .catch((err: Error) => console.error('Failed to set busy_timeout:', err));
 
   // Use WAL mode for better concurrent read/write performance

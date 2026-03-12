@@ -12,7 +12,7 @@ services:
       - couch-data:/data
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=file:/data/couch-commander.db
+      - DATABASE_URL=file:/data/couch-commander.db?socket_timeout=30&connection_limit=1
       - TMDB_API_KEY=${TMDB_API_KEY}
     healthcheck:
       test: ["CMD", "node", "-e", "require('http').get('http://localhost:4242/ping', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"]

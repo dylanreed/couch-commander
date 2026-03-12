@@ -49,7 +49,7 @@ COPY --from=builder /app/src/views ./dist/views
 RUN mkdir -p /data
 
 ENV NODE_ENV=production
-ENV DATABASE_URL=file:/data/couch-commander.db
+ENV DATABASE_URL="file:/data/couch-commander.db?socket_timeout=30&connection_limit=1"
 ENV PORT=4242
 
 EXPOSE 4242
