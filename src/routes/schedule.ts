@@ -2,7 +2,7 @@
 // ABOUTME: Shows the weekly schedule with episode status.
 
 import { Router, Response } from 'express';
-import { generateSchedule, getScheduleForDay } from '../services/scheduler';
+import { generateSchedule, getScheduleForDay, shouldRegenerate } from '../services/scheduler';
 import { getDayCapacity } from '../services/dayAssignment';
 
 const router = Router();
@@ -22,32 +22,38 @@ function renderWithLayout(
 }
 
 router.get('/', async (_req, res) => {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-  // Generate schedule for next 7 days
-  await generateSchedule(today, 7);
+    if (shouldRegenerate(7)) {
+      await generateSchedule(today, 7);
+    }
 
-  const days = [];
-  for (let i = 0; i < 7; i++) {
-    const date = new Date(today);
-    date.setDate(date.getDate() + i);
+    const days = [];
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(today);
+      date.setDate(date.getDate() + i);
 
-    const schedule = await getScheduleForDay(date);
-    const capacity = await getDayCapacity(date.getDay());
-    days.push({
-      date,
-      isToday: i === 0,
-      plannedMinutes: schedule?.plannedMinutes || 0,
-      episodes: schedule?.episodes || [],
-      capacity,
+      const schedule = await getScheduleForDay(date);
+      const capacity = await getDayCapacity(date.getDay());
+      days.push({
+        date,
+        isToday: i === 0,
+        plannedMinutes: schedule?.plannedMinutes || 0,
+        episodes: schedule?.episodes || [],
+        capacity,
+      });
+    }
+
+    renderWithLayout(res, 'schedule', {
+      title: 'Schedule',
+      days,
     });
+  } catch (error) {
+    console.error('Schedule error:', error);
+    renderWithLayout(res, 'error', { title: 'Error', message: 'Failed to load schedule' });
   }
-
-  renderWithLayout(res, 'schedule', {
-    title: 'Schedule',
-    days,
-  });
 });
 
 export default router;

@@ -4,7 +4,7 @@
 import express from 'express';
 import path from 'path';
 import dotenv from 'dotenv';
-import { getScheduleForDay, generateSchedule, getScheduleLock } from './services/scheduler';
+import { getScheduleForDay, generateSchedule, getScheduleLock, shouldRegenerate } from './services/scheduler';
 import { prisma } from './lib/db';
 import watchlistRoutes from './routes/watchlist';
 import settingsRoutes from './routes/settings';
@@ -63,28 +63,34 @@ app.get('/health', (_req, res) => {
 });
 
 app.get('/', async (_req, res) => {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
 
-  // Generate schedule if needed
-  await generateSchedule(today, 14);
+    if (shouldRegenerate(14)) {
+      await generateSchedule(today, 14);
+    }
 
-  const todaySchedule = await getScheduleForDay(today);
-  const yesterdaySchedule = await getScheduleForDay(yesterday);
+    const todaySchedule = await getScheduleForDay(today);
+    const yesterdaySchedule = await getScheduleForDay(yesterday);
 
-  const yesterdayPending = yesterdaySchedule?.episodes.filter(
-    (ep) => ep.status === 'pending'
-  ) || [];
+    const yesterdayPending = yesterdaySchedule?.episodes.filter(
+      (ep) => ep.status === 'pending'
+    ) || [];
 
-  renderWithLayout(res, 'dashboard', {
-    title: 'Dashboard',
-    todayEpisodes: todaySchedule?.episodes || [],
-    yesterdayEpisodes: yesterdayPending,
-    needsCheckin: yesterdayPending.length > 0,
-  });
+    renderWithLayout(res, 'dashboard', {
+      title: 'Dashboard',
+      todayEpisodes: todaySchedule?.episodes || [],
+      yesterdayEpisodes: yesterdayPending,
+      needsCheckin: yesterdayPending.length > 0,
+    });
+  } catch (error) {
+    console.error('Dashboard error:', error);
+    renderWithLayout(res, 'error', { title: 'Error', message: 'Failed to load dashboard' });
+  }
 });
 
 // Only start the server when run directly, not when imported by tests

@@ -21,23 +21,28 @@ function renderWithLayout(
 }
 
 router.get('/', async (_req, res) => {
-  const watching = await prisma.watchlistEntry.findMany({
-    where: { status: 'watching' },
-    include: { show: true, dayAssignments: true },
-    orderBy: { priority: 'asc' },
-  });
+  try {
+    const watching = await prisma.watchlistEntry.findMany({
+      where: { status: 'watching' },
+      include: { show: true, dayAssignments: true },
+      orderBy: { priority: 'asc' },
+    });
 
-  const queued = await prisma.watchlistEntry.findMany({
-    where: { status: 'queued' },
-    include: { show: true },
-    orderBy: { priority: 'asc' },
-  });
+    const queued = await prisma.watchlistEntry.findMany({
+      where: { status: 'queued' },
+      include: { show: true },
+      orderBy: { priority: 'asc' },
+    });
 
-  renderWithLayout(res, 'watchlist', {
-    title: 'Watchlist',
-    watching,
-    queued,
-  });
+    renderWithLayout(res, 'watchlist', {
+      title: 'Watchlist',
+      watching,
+      queued,
+    });
+  } catch (error) {
+    console.error('Watchlist page error:', error);
+    renderWithLayout(res, 'error', { title: 'Error', message: 'Failed to load watchlist' });
+  }
 });
 
 export default router;

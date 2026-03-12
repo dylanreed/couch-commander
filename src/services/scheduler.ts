@@ -24,6 +24,24 @@ export function getScheduleLock(): Promise<void> {
   return scheduleLock;
 }
 
+// Guard to prevent unnecessary schedule regeneration
+let scheduleStale = true;
+let lastGeneratedDays = 0;
+
+export function markScheduleStale(): void {
+  scheduleStale = true;
+  lastGeneratedDays = 0;
+}
+
+export function markScheduleGenerated(days: number): void {
+  scheduleStale = false;
+  lastGeneratedDays = Math.max(lastGeneratedDays, days);
+}
+
+export function shouldRegenerate(requestedDays: number): boolean {
+  return scheduleStale || requestedDays > lastGeneratedDays;
+}
+
 export async function getScheduleForDay(date: Date): Promise<ScheduleDayWithEpisodes | null> {
   const dayStart = new Date(date);
   dayStart.setHours(0, 0, 0, 0);
@@ -105,6 +123,8 @@ async function doGenerateSchedule(startDate: Date, days: number): Promise<void> 
       await fillDayRoundRobin(scheduleDay.id, assignments, positions, minutesForDay);
     }
   }
+
+  markScheduleGenerated(days);
 }
 
 async function fillDaySequential(
@@ -215,4 +235,5 @@ async function fillDayRoundRobin(
 export async function clearSchedule(): Promise<void> {
   await prisma.scheduledEpisode.deleteMany();
   await prisma.scheduleDay.deleteMany();
+  markScheduleStale();
 }
