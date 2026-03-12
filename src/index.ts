@@ -13,6 +13,7 @@ import showsApiRoutes from './routes/api/shows';
 import watchlistApiRoutes from './routes/api/watchlist';
 import checkinApiRoutes from './routes/api/checkin';
 import systemApiRoutes from './routes/api/system';
+import { apiKeyAuth } from './middleware/apiKey';
 
 dotenv.config();
 
@@ -49,6 +50,12 @@ app.use('/api/watchlist', watchlistApiRoutes);
 app.use('/api/checkin', checkinApiRoutes);
 app.use('/api/v1/system', systemApiRoutes);
 app.use('/api/v1', systemApiRoutes);  // Mounts /health at /api/v1/health
+
+// Versioned API routes (with API key auth) for external consumers
+// Web UI continues to use unauthenticated /api/* routes above
+app.use('/api/v1/shows', apiKeyAuth, showsApiRoutes);
+app.use('/api/v1/watchlist', apiKeyAuth, watchlistApiRoutes);
+app.use('/api/v1/checkin', apiKeyAuth, checkinApiRoutes);
 
 // Page routes
 app.use('/watchlist', watchlistRoutes);

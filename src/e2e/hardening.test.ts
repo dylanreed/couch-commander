@@ -1,7 +1,7 @@
 // ABOUTME: End-to-end tests for container hardening features.
 // ABOUTME: Tests ping, system status, and graceful shutdown behavior.
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import request from 'supertest';
 import app from '../index';
 import { getScheduleLock, shouldRegenerate, markScheduleStale, markScheduleGenerated } from '../services/scheduler';
@@ -24,6 +24,37 @@ describe('Container Hardening', () => {
     it('getScheduleLock reflects current lock state', async () => {
       const lock = getScheduleLock();
       await expect(lock).resolves.toBeUndefined();
+    });
+  });
+
+  describe('API v1 routes', () => {
+    it('serves v1 system status', async () => {
+      const res = await request(app).get('/api/v1/system/status');
+      expect(res.status).toBe(200);
+      expect(res.body.appName).toBe('Couch Commander');
+    });
+
+    it('v1 routes reject requests when API_KEY is set and no key provided', async () => {
+      vi.stubEnv('API_KEY', 'test-secret');
+      const res = await request(app).get('/api/v1/watchlist/availability');
+      expect(res.status).toBe(401);
+      vi.unstubAllEnvs();
+    });
+
+    it('v1 routes allow requests with correct API key', async () => {
+      vi.stubEnv('API_KEY', 'test-secret');
+      const res = await request(app)
+        .get('/api/v1/watchlist/availability')
+        .set('X-Api-Key', 'test-secret');
+      expect(res.status).toBe(200);
+      vi.unstubAllEnvs();
+    });
+
+    it('legacy /api/* routes remain unauthenticated even with API_KEY set', async () => {
+      vi.stubEnv('API_KEY', 'test-secret');
+      const res = await request(app).get('/api/watchlist/availability');
+      expect(res.status).toBe(200);
+      vi.unstubAllEnvs();
     });
   });
 
