@@ -4,6 +4,7 @@
 import { Router, Response } from 'express';
 import { generateSchedule, getScheduleForDay, shouldRegenerate } from '../services/scheduler';
 import { getDayCapacity } from '../services/dayAssignment';
+import { prisma } from '../lib/db';
 
 const router = Router();
 
@@ -46,9 +47,40 @@ router.get('/', async (_req, res) => {
       });
     }
 
+    // Compute overflow: watching shows with day assignments but zero scheduled episodes
+    const scheduledShowIds = new Set<number>();
+    for (const day of days) {
+      for (const ep of day.episodes) {
+        scheduledShowIds.add(ep.showId);
+      }
+    }
+
+    const watchingWithAssignments = await prisma.watchlistEntry.findMany({
+      where: {
+        status: 'watching',
+        dayAssignments: { some: {} },
+      },
+      include: {
+        show: true,
+        dayAssignments: true,
+      },
+    });
+
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const overflowShows = watchingWithAssignments
+      .filter(entry =>
+        !scheduledShowIds.has(entry.showId) &&
+        entry.currentEpisode <= entry.show.totalEpisodes
+      )
+      .map(entry => ({
+        ...entry,
+        assignedDayNames: entry.dayAssignments.map(a => dayNames[a.dayOfWeek]),
+      }));
+
     renderWithLayout(res, 'schedule', {
       title: 'Schedule',
       days,
+      overflowShows,
     });
   } catch (error) {
     console.error('Schedule error:', error);

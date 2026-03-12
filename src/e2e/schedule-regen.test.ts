@@ -15,6 +15,71 @@ describe('POST /api/schedule/regenerate', () => {
     await prisma.show.deleteMany();
   });
 
+  describe('Overflow Shows', () => {
+    it('identifies shows that do not fit in the schedule', async () => {
+      const fittingShow = await prisma.show.create({
+        data: {
+          tmdbId: 88881, title: 'Short Show', genres: '["Comedy"]',
+          totalSeasons: 1, totalEpisodes: 10, episodeRuntime: 30, status: 'Ended',
+        },
+      });
+      const overflowShow = await prisma.show.create({
+        data: {
+          tmdbId: 88882, title: 'Long Show', genres: '["Drama"]',
+          totalSeasons: 1, totalEpisodes: 10, episodeRuntime: 60, status: 'Ended',
+        },
+      });
+
+      const todayDow = new Date().getDay();
+      const entry1 = await prisma.watchlistEntry.create({ data: { showId: fittingShow.id, status: 'watching' } });
+      await prisma.showDayAssignment.create({ data: { watchlistEntryId: entry1.id, dayOfWeek: todayDow } });
+      const entry2 = await prisma.watchlistEntry.create({ data: { showId: overflowShow.id, status: 'watching' } });
+      await prisma.showDayAssignment.create({ data: { watchlistEntryId: entry2.id, dayOfWeek: todayDow } });
+
+      await prisma.settings.upsert({
+        where: { id: 1 },
+        update: { weekdayMinutes: 30, weekendMinutes: 30 },
+        create: { weekdayMinutes: 30, weekendMinutes: 30 },
+      });
+
+      await request(app).post('/api/schedule/regenerate');
+      const res = await request(app).get('/schedule');
+      expect(res.status).toBe(200);
+      expect(res.text).toContain('Doesn&#39;t Fit');
+      expect(res.text).toContain('Long Show');
+    });
+
+    it('excludes completed shows from overflow', async () => {
+      const show = await prisma.show.create({
+        data: {
+          tmdbId: 88883, title: 'Completed Show', genres: '["Comedy"]',
+          totalSeasons: 1, totalEpisodes: 5, episodeRuntime: 30, status: 'Ended',
+        },
+      });
+      const entry = await prisma.watchlistEntry.create({
+        data: { showId: show.id, status: 'watching', currentSeason: 1, currentEpisode: 6 },
+      });
+      await prisma.showDayAssignment.create({ data: { watchlistEntryId: entry.id, dayOfWeek: new Date().getDay() } });
+      await prisma.settings.upsert({
+        where: { id: 1 },
+        update: { weekdayMinutes: 1, weekendMinutes: 1 },
+        create: { weekdayMinutes: 1, weekendMinutes: 1 },
+      });
+
+      await request(app).post('/api/schedule/regenerate');
+      const res = await request(app).get('/schedule');
+      expect(res.status).toBe(200);
+      expect(res.text).not.toContain('Doesn&#39;t Fit');
+      expect(res.text).not.toContain('Completed Show');
+    });
+
+    it('hides overflow section when all shows fit', async () => {
+      const res = await request(app).get('/schedule');
+      expect(res.status).toBe(200);
+      expect(res.text).not.toContain('Doesn&#39;t Fit');
+    });
+  });
+
   it('returns 200 with { success: true }', async () => {
     const res = await request(app).post('/api/schedule/regenerate');
     expect(res.status).toBe(200);
