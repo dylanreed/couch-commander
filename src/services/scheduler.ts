@@ -14,6 +14,9 @@ type AssignmentWithEntry = {
   watchlistEntry: WatchlistEntry & { show: Show };
 };
 
+// Mutex to prevent concurrent schedule generation from locking SQLite
+let scheduleLock: Promise<void> = Promise.resolve();
+
 export async function getScheduleForDay(date: Date): Promise<ScheduleDayWithEpisodes | null> {
   const dayStart = new Date(date);
   dayStart.setHours(0, 0, 0, 0);
@@ -29,7 +32,18 @@ export async function getScheduleForDay(date: Date): Promise<ScheduleDayWithEpis
   });
 }
 
-export async function generateSchedule(startDate: Date, days: number): Promise<void> {
+export function generateSchedule(startDate: Date, days: number): Promise<void> {
+  // Queue behind any in-progress generation to avoid SQLite write conflicts
+  const previous = scheduleLock;
+  let resolve: () => void;
+  scheduleLock = new Promise<void>((r) => { resolve = r; });
+
+  return previous
+    .then(() => doGenerateSchedule(startDate, days))
+    .finally(() => resolve!());
+}
+
+async function doGenerateSchedule(startDate: Date, days: number): Promise<void> {
   const settings = await getSettings();
 
   // Track current position for each show across all days being generated
