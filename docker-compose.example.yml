@@ -1,0 +1,28 @@
+# ABOUTME: Example Docker Compose for adding Couch Commander to your *arr stack.
+# ABOUTME: Copy this file, rename to docker-compose.yml, and fill in your TMDB API key.
+
+services:
+  couch-commander:
+    image: ghcr.io/dylanreed/couch-commander:latest
+    container_name: couch-commander
+    restart: unless-stopped
+    ports:
+      - "4242:4242"
+    volumes:
+      # SQLite database persists here — back this up
+      - ./couch-commander-data:/data
+    environment:
+      # Required: get a free API key at https://www.themoviedb.org/settings/api
+      - TMDB_API_KEY=your_key_here
+
+      # Optional: protect the API with a key (tools like Homepage can use it)
+      # - API_KEY=your_secret_key
+
+      # Optional: change the default port (update the ports mapping too)
+      # - PORT=4242
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:4242/ping', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s

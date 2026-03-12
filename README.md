@@ -1,38 +1,17 @@
 # Couch Commander
 
-Your personal TV concierge. Take control of your viewing schedule instead of endlessly scrolling through streaming apps.
+TV schedule manager that sits alongside your *arr stack. Build a watchlist, assign shows to days, and get a daily lineup — no more staring at Netflix for 20 minutes deciding what to watch.
 
-![Couch Commander](public/logo.png)
+## What it is
 
-## What It Does
-
-Couch Commander helps you manage your TV watching by:
-
-- **Building a watchlist** - Search for shows via TMDB and add them to your queue
-- **Creating viewing schedules** - Assign shows to specific days of the week
-- **Tracking progress** - Know exactly where you are in each series
-- **Managing your time** - Set daily viewing budgets so you don't binge too hard
-- **Checking episode availability** - Only schedule episodes that have actually aired
-
-Perfect for cord-cutters juggling multiple streaming services, families coordinating shared TV time, or anyone who wants to be more intentional about their entertainment.
-
-## Features
-
-- **Show Search** - Find any TV show using TMDB's extensive database
-- **Queue System** - Add shows to a queue, then promote them when ready to watch
-- **Day Assignments** - Assign shows to specific days (Movie Monday, Documentary Thursday, etc.)
-- **Time Budgets** - Set per-day minute limits for weekdays and weekends
-- **Episode Tracking** - Track which season/episode you're on
-- **Check-ins** - Quick daily check-ins to mark what you watched
-- **Scheduling Modes** - Sequential, round-robin, or genre-based scheduling
-- **Staggered Start** - Option to finish one show before starting another
+Couch Commander gives you a personal TV concierge. Search for shows via TMDB, add them to a watchlist, assign them to viewing days, and the app generates a daily schedule from what's actually aired. Set time budgets per day so you know when you've hit your limit. Check in after watching and it advances your progress automatically. It runs as a Docker container on port 4242 — same neighborhood as Sonarr, Radarr, and the rest of your media stack.
 
 ## Screenshots
 
-*Dashboard - Tonight's Lineup*
+*Dashboard — Tonight's Lineup*
 ![Dashboard](docs/screenshots/dashboard.png)
 
-*My Shows - Watchlist Management*
+*My Shows — Watchlist Management*
 ![Watchlist](docs/screenshots/watchlist.png)
 
 *Weekly Schedule*
@@ -43,169 +22,79 @@ Perfect for cord-cutters juggling multiple streaming services, families coordina
 
 ## Quick Start
 
-### Prerequisites
+Get a free TMDB API key at [themoviedb.org/settings/api](https://www.themoviedb.org/settings/api). Takes about two minutes.
 
-- [TMDB API Key](https://www.themoviedb.org/settings/api) (free)
+Copy the example compose file:
 
-### Option 1: Docker (Recommended for NAS/Server)
+```bash
+cp docker-compose.example.yml docker-compose.yml
+```
 
-1. Clone the repo:
-   ```bash
-   git clone https://github.com/dylanreed/couch-commander.git
-   cd couch-commander
-   ```
+Edit `docker-compose.yml` and replace `your_key_here` with your TMDB API key, then:
 
-2. Create a `.env` file:
-   ```bash
-   echo "TMDB_API_KEY=your_api_key_here" > .env
-   ```
+```bash
+docker compose up -d
+```
 
-3. Run with Docker Compose:
-   ```bash
-   docker-compose up -d
-   ```
+Open [http://localhost:4242](http://localhost:4242).
 
-4. Open http://localhost:4242
-
-**Data Persistence:** Your database is stored in a Docker volume and survives container restarts.
-
-### Option 2: Local Development
-
-1. Clone and install:
-   ```bash
-   git clone https://github.com/dylanreed/couch-commander.git
-   cd couch-commander
-   npm install
-   ```
-
-2. Create `.env`:
-   ```bash
-   cp .env.example .env
-   # Edit .env and add your TMDB_API_KEY
-   ```
-
-3. Set up the database:
-   ```bash
-   npx prisma db push
-   ```
-
-4. Build CSS and start:
-   ```bash
-   npm run css:build
-   npm run dev
-   ```
-
-5. Open http://localhost:5055
-
-## Synology NAS Setup
-
-1. Copy the project to your NAS:
-   ```
-   /volume1/docker/couch-commander/
-   ```
-
-2. SSH into your NAS and navigate there:
-   ```bash
-   cd /volume1/docker/couch-commander
-   ```
-
-3. Create `.env` with your TMDB key:
-   ```bash
-   echo "TMDB_API_KEY=your_api_key_here" > .env
-   ```
-
-4. Build and run:
-   ```bash
-   sudo docker-compose up -d --build
-   ```
-
-5. Access at `http://your-nas-ip:4242`
-
-**Troubleshooting:**
-- If port 4242 is taken, edit `docker-compose.yml` and change the port mapping
-- Check logs with `sudo docker-compose logs`
-- Restart with `sudo docker-compose restart`
+Your database lives in `./couch-commander-data/` on the host — back that directory up.
 
 ## Configuration
 
-### Settings Page
-
-Access `/settings` to configure:
-
-- **Daily Time Budgets** - How many minutes per day you want to watch
-- **Day Overrides** - Custom budgets for specific days
-- **Scheduling Mode** - How shows are scheduled:
-  - *Sequential* - Finish one show before starting another
-  - *Round-robin* - Rotate through all active shows
-  - *Genre-based* - Schedule based on genre rules
-- **Staggered Start** - Wait N episodes before starting next show
-
-### Environment Variables
-
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `TMDB_API_KEY` | Yes | - | Your TMDB API key |
-| `DATABASE_URL` | No | `file:./dev.db` | SQLite database path |
-| `PORT` | No | `5055` (dev) / `4242` (docker) | Server port |
+| `TMDB_API_KEY` | Yes | — | TMDB API key for show data |
+| `API_KEY` | No | — | Protect API endpoints (`X-Api-Key` header) |
+| `PORT` | No | `4242` | Internal port |
+| `DATABASE_URL` | No | `file:/data/couch-commander.db` | SQLite database path |
 
-## Usage
+## Adding to your *arr stack
 
-### Adding Shows
+Couch Commander fits naturally alongside Sonarr, Radarr, and Plex. It doesn't talk to them directly — it's a scheduling layer on top of whatever you're already watching. Same Docker network, same Nginx Proxy Manager setup, same Homepage dashboard.
 
-1. Go to **My Shows** (`/watchlist`)
-2. Search for a show in the search box
-3. Click **Add** to add it to your queue
+**Homepage widget** support is available via `/api/v1/system/status`. Add it to your Homepage config like any other service using the `X-Api-Key` header if you've set `API_KEY`.
 
-### Promoting Shows
+## API
 
-Shows start in the **Queue**. When you're ready to watch:
+All endpoints under `/api/v1/` require the `X-Api-Key` header when `API_KEY` is set. The healthcheck endpoint is always unauthenticated.
 
-1. Click **Promote** on a queued show
-2. Select which days you want to watch it
-3. The show moves to **Currently Watching**
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| `GET` | `/ping` | No | Healthcheck — returns `pong` |
+| `GET` | `/api/v1/system/status` | Yes | App version, uptime, environment |
+| `GET` | `/api/v1/health` | Yes | Component health (database, TMDB) |
+| `GET` | `/api/v1/shows/search?q=...` | Yes | Search shows via TMDB |
+| `POST` | `/api/v1/watchlist` | Yes | Add a show to the watchlist |
 
-### Daily Schedule
+Example request with auth:
 
-The **Tonight** dashboard (`/`) shows:
-- Today's scheduled episodes
-- Yesterday's check-in (mark what you watched)
-- Total runtime for the evening
-
-### Weekly View
-
-The **Schedule** page (`/schedule`) shows your full week with:
-- Episodes per day
-- Time budget usage
-- Capacity remaining
-
-## Tech Stack
-
-- **Backend:** Node.js, Express, TypeScript
-- **Database:** SQLite with Prisma ORM
-- **Frontend:** EJS templates, htmx, Tailwind CSS
-- **Data:** TMDB API for show information
-- **Deployment:** Docker
+```bash
+curl -H "X-Api-Key: your_secret_key" http://localhost:4242/api/v1/system/status
+```
 
 ## Development
 
+This project uses [Doppler](https://doppler.com) for secrets management. After cloning:
+
 ```bash
-# Run tests
+doppler setup --no-interactive
+npm install
+npm run db:push
 npm test
-
-# Run in watch mode
 npm run dev
+```
 
-# Build for production
-npm run build
+The dev server runs on port 4242 by default. Doppler wraps `npm test` and `npm run dev` automatically — no `.env` file needed locally.
 
-# Rebuild CSS
-npm run css:build
+**Other useful commands:**
+
+```bash
+npm run css:build     # rebuild Tailwind CSS
+npm run db:studio     # open Prisma Studio
+npm run build         # compile TypeScript for production
 ```
 
 ## License
 
 MIT
-
----
-
-Built with ☕ and 📺 by Dylan
