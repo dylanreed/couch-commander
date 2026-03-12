@@ -48,7 +48,7 @@ app.use('/api/shows', showsApiRoutes);
 app.use('/api/watchlist', watchlistApiRoutes);
 app.use('/api/checkin', checkinApiRoutes);
 app.use('/api/v1/system', systemApiRoutes);
-app.use('/api/v1', systemApiRoutes);
+app.use('/api/v1', systemApiRoutes);  // Mounts /health at /api/v1/health
 
 // Page routes
 app.use('/watchlist', watchlistRoutes);
