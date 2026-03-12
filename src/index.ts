@@ -48,6 +48,7 @@ function renderWithLayout(
 app.use('/api/shows', showsApiRoutes);
 app.use('/api/watchlist', watchlistApiRoutes);
 app.use('/api/checkin', checkinApiRoutes);
+app.use('/api/schedule', scheduleRoutes);
 app.use('/api/v1/system', systemApiRoutes);
 app.use('/api/v1', systemApiRoutes);  // Mounts /health at /api/v1/health
 
