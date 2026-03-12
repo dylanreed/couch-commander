@@ -81,15 +81,7 @@
             <p class="text-sm text-lounge-muted mt-0.5">Rotate through all shows</p>
           </div>
         </label>
-        <label class="flex items-start gap-3 bg-lounge-card rounded-xl p-4 cursor-pointer hover:bg-lounge-card/80 transition-colors">
-          <input type="radio" name="schedulingMode" value="genre"
-                 class="mt-1 accent-lounge-gold"
-                 <%= settings.schedulingMode === 'genre' ? 'checked' : '' %>>
-          <div>
-            <span class="font-medium text-lounge-cream">Genre-based</span>
-            <p class="text-sm text-lounge-muted mt-0.5">Schedule based on genre rules</p>
-          </div>
-        </label>
+        <%# TODO: Re-add genre mode as "assigning genres for a day of the week" once backend implementation exists %>
       </div>
     </div>
 

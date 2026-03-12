@@ -121,6 +121,9 @@ async function doGenerateSchedule(startDate: Date, days: number): Promise<void> 
       await fillDaySequential(scheduleDay.id, assignments, positions, minutesForDay);
     } else if (settings.schedulingMode === 'roundrobin') {
       await fillDayRoundRobin(scheduleDay.id, assignments, positions, minutesForDay);
+    } else {
+      console.warn(`Unknown scheduling mode "${settings.schedulingMode}", falling back to sequential`);
+      await fillDaySequential(scheduleDay.id, assignments, positions, minutesForDay);
     }
   }
 
