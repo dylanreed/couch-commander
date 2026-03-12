@@ -2,9 +2,8 @@
 // ABOUTME: Shows the weekly schedule with episode status.
 
 import { Router, Response } from 'express';
-import { generateSchedule, getScheduleForDay, shouldRegenerate, markScheduleStale } from '../services/scheduler';
+import { generateSchedule, getScheduleForDay, shouldRegenerate } from '../services/scheduler';
 import { getDayCapacity } from '../services/dayAssignment';
-import { prisma } from '../lib/db';
 
 const router = Router();
 
@@ -21,44 +20,6 @@ function renderWithLayout(
     res.render('layouts/main', { ...data, body });
   });
 }
-
-router.post('/regenerate', async (_req, res) => {
-  try {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    // Find all future schedule days (today and beyond)
-    const futureDays = await prisma.scheduleDay.findMany({
-      where: { date: { gte: today } },
-      select: { id: true },
-    });
-
-    const futureDayIds = futureDays.map((d) => d.id);
-
-    // Delete scheduled episodes for future days
-    if (futureDayIds.length > 0) {
-      await prisma.scheduledEpisode.deleteMany({
-        where: { scheduleDayId: { in: futureDayIds } },
-      });
-
-      // Delete the future schedule days
-      await prisma.scheduleDay.deleteMany({
-        where: { id: { in: futureDayIds } },
-      });
-    }
-
-    // Mark schedule stale so it will be regenerated
-    markScheduleStale();
-
-    // Generate a fresh schedule from today
-    await generateSchedule(today, 7);
-
-    res.json({ success: true });
-  } catch (error) {
-    console.error('Schedule regenerate error:', error);
-    res.status(500).json({ success: false, error: 'Failed to regenerate schedule' });
-  }
-});
 
 router.get('/', async (_req, res) => {
   try {

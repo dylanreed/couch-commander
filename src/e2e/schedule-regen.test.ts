@@ -120,4 +120,82 @@ describe('POST /api/schedule/regenerate', () => {
     });
     expect(pastDayAfter).not.toBeNull();
   });
+
+  it("replaces today's schedule day and watched episode on regenerate", async () => {
+    // Create a show
+    const show = await prisma.show.create({
+      data: {
+        tmdbId: 88888,
+        title: 'Today Edge Case Show',
+        posterPath: null,
+        genres: '[]',
+        totalSeasons: 1,
+        totalEpisodes: 10,
+        episodeRuntime: 30,
+        status: 'Ended',
+      },
+    });
+
+    const watchlistEntry = await prisma.watchlistEntry.create({
+      data: {
+        showId: show.id,
+        status: 'watching',
+        currentSeason: 1,
+        currentEpisode: 1,
+      },
+    });
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    await prisma.showDayAssignment.create({
+      data: {
+        watchlistEntryId: watchlistEntry.id,
+        dayOfWeek: today.getDay(),
+      },
+    });
+
+    // Create a schedule day for TODAY with a watched episode
+    const todayDay = await prisma.scheduleDay.create({
+      data: {
+        date: today,
+        plannedMinutes: 60,
+      },
+    });
+
+    const oldWatchedEpisode = await prisma.scheduledEpisode.create({
+      data: {
+        scheduleDayId: todayDay.id,
+        showId: show.id,
+        season: 1,
+        episode: 1,
+        runtime: 30,
+        order: 0,
+        status: 'watched',
+      },
+    });
+
+    // Regenerate — today is >= today, so it gets cleared and rebuilt
+    const res = await request(app).post('/api/schedule/regenerate');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ success: true });
+
+    // The old schedule day for today should be gone
+    const oldDayAfter = await prisma.scheduleDay.findUnique({
+      where: { id: todayDay.id },
+    });
+    expect(oldDayAfter).toBeNull();
+
+    // The old watched episode should be gone (today gets fully regenerated)
+    const oldEpisodeAfter = await prisma.scheduledEpisode.findUnique({
+      where: { id: oldWatchedEpisode.id },
+    });
+    expect(oldEpisodeAfter).toBeNull();
+
+    // A fresh schedule day for today should exist
+    const newTodayDay = await prisma.scheduleDay.findFirst({
+      where: { date: today },
+    });
+    expect(newTodayDay).not.toBeNull();
+  });
 });
