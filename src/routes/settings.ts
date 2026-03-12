@@ -22,48 +22,58 @@ function renderWithLayout(
 }
 
 router.get('/', async (_req, res) => {
-  const settings = await getSettings();
+  try {
+    const settings = await getSettings();
 
-  renderWithLayout(res, 'settings', {
-    title: 'Settings',
-    settings,
-  });
+    renderWithLayout(res, 'settings', {
+      title: 'Settings',
+      settings,
+    });
+  } catch (error) {
+    console.error('Settings page error:', error);
+    renderWithLayout(res, 'error', { title: 'Error', message: 'Failed to load settings' });
+  }
 });
 
 router.post('/', async (req, res) => {
-  const {
-    weekdayMinutes,
-    weekendMinutes,
-    mondayMinutes,
-    tuesdayMinutes,
-    wednesdayMinutes,
-    thursdayMinutes,
-    fridayMinutes,
-    saturdayMinutes,
-    sundayMinutes,
-    schedulingMode,
-    staggeredStart,
-    staggerEpisodes,
-  } = req.body;
+  try {
+    const {
+      weekdayMinutes,
+      weekendMinutes,
+      mondayMinutes,
+      tuesdayMinutes,
+      wednesdayMinutes,
+      thursdayMinutes,
+      fridayMinutes,
+      saturdayMinutes,
+      sundayMinutes,
+      schedulingMode,
+      staggeredStart,
+      staggerEpisodes,
+    } = req.body;
 
-  await updateSettings({
-    weekdayMinutes: Number(weekdayMinutes) || 120,
-    weekendMinutes: Number(weekendMinutes) || 240,
-    mondayMinutes: mondayMinutes ? Number(mondayMinutes) : null,
-    tuesdayMinutes: tuesdayMinutes ? Number(tuesdayMinutes) : null,
-    wednesdayMinutes: wednesdayMinutes ? Number(wednesdayMinutes) : null,
-    thursdayMinutes: thursdayMinutes ? Number(thursdayMinutes) : null,
-    fridayMinutes: fridayMinutes ? Number(fridayMinutes) : null,
-    saturdayMinutes: saturdayMinutes ? Number(saturdayMinutes) : null,
-    sundayMinutes: sundayMinutes ? Number(sundayMinutes) : null,
-    schedulingMode: schedulingMode || 'sequential',
-    staggeredStart: staggeredStart === 'true',
-    staggerEpisodes: Number(staggerEpisodes) || 3,
-  });
+    await updateSettings({
+      weekdayMinutes: Number(weekdayMinutes) || 120,
+      weekendMinutes: Number(weekendMinutes) || 240,
+      mondayMinutes: mondayMinutes ? Number(mondayMinutes) : null,
+      tuesdayMinutes: tuesdayMinutes ? Number(tuesdayMinutes) : null,
+      wednesdayMinutes: wednesdayMinutes ? Number(wednesdayMinutes) : null,
+      thursdayMinutes: thursdayMinutes ? Number(thursdayMinutes) : null,
+      fridayMinutes: fridayMinutes ? Number(fridayMinutes) : null,
+      saturdayMinutes: saturdayMinutes ? Number(saturdayMinutes) : null,
+      sundayMinutes: sundayMinutes ? Number(sundayMinutes) : null,
+      schedulingMode: schedulingMode || 'sequential',
+      staggeredStart: staggeredStart === 'true',
+      staggerEpisodes: Number(staggerEpisodes) || 3,
+    });
 
-  await clearSchedule(); // Force schedule regeneration
+    await clearSchedule(); // Force schedule regeneration
 
-  res.status(200).send('');
+    res.status(200).send('');
+  } catch (error) {
+    console.error('Settings update error:', error);
+    renderWithLayout(res, 'error', { title: 'Error', message: 'Failed to update settings' });
+  }
 });
 
 export default router;
