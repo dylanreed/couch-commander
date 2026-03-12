@@ -20,16 +20,16 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/nervous-net/couch-commander.git"
+    "url": "git+https://github.com/dylanreed/couch-commander.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "bugs": {
-    "url": "https://github.com/nervous-net/couch-commander/issues"
+    "url": "https://github.com/dylanreed/couch-commander/issues"
   },
-  "homepage": "https://github.com/nervous-net/couch-commander#readme",
+  "homepage": "https://github.com/dylanreed/couch-commander#readme",
   "dependencies": {
     "@prisma/client": "^5.22.0",
     "dotenv": "^17.2.3",

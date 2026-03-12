@@ -21,6 +21,12 @@ RUN npm run css:build
 
 FROM node:22-slim
 
+LABEL org.opencontainers.image.title="Couch Commander"
+LABEL org.opencontainers.image.description="TV viewing schedule manager for your *arr stack"
+LABEL org.opencontainers.image.url="https://github.com/dylanreed/couch-commander"
+LABEL org.opencontainers.image.source="https://github.com/dylanreed/couch-commander"
+LABEL org.opencontainers.image.licenses="MIT"
+
 # Install OpenSSL for Prisma
 RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
