@@ -144,42 +144,49 @@ async function fillDayRoundRobin(
   let remainingMinutes = budgetMinutes;
   let order = 0;
 
-  // Only ONE episode per show per day (single pass through assignments)
-  for (const assignment of assignments) {
-    if (remainingMinutes <= 0) break;
+  // Loop through all assignments repeatedly, one episode per show per pass,
+  // until time runs out or no show can be scheduled in a full pass
+  let scheduledThisPass = true;
+  while (remainingMinutes > 0 && scheduledThisPass) {
+    scheduledThisPass = false;
 
-    const entry = assignment.watchlistEntry;
-    const pos = positions.get(entry.id)!;
-    const runtime = entry.show.episodeRuntime;
+    for (const assignment of assignments) {
+      if (remainingMinutes <= 0) break;
 
-    if (remainingMinutes >= runtime && pos.episode <= entry.show.totalEpisodes) {
-      // Check availability for returning series
-      if (entry.show.status === 'Returning Series') {
-        const availability = await isEpisodeAvailable(
-          entry.show.tmdbId,
-          pos.season,
-          pos.episode
-        );
-        if (!availability.available) {
-          continue; // Skip this show, try next
+      const entry = assignment.watchlistEntry;
+      const pos = positions.get(entry.id)!;
+      const runtime = entry.show.episodeRuntime;
+
+      if (remainingMinutes >= runtime && pos.episode <= entry.show.totalEpisodes) {
+        // Check availability for returning series
+        if (entry.show.status === 'Returning Series') {
+          const availability = await isEpisodeAvailable(
+            entry.show.tmdbId,
+            pos.season,
+            pos.episode
+          );
+          if (!availability.available) {
+            continue; // Skip this show, try next
+          }
         }
+
+        await prisma.scheduledEpisode.create({
+          data: {
+            scheduleDayId,
+            showId: entry.show.id,
+            season: pos.season,
+            episode: pos.episode,
+            runtime,
+            order,
+            status: 'pending',
+          },
+        });
+
+        pos.episode++;
+        remainingMinutes -= runtime;
+        order++;
+        scheduledThisPass = true;
       }
-
-      await prisma.scheduledEpisode.create({
-        data: {
-          scheduleDayId,
-          showId: entry.show.id,
-          season: pos.season,
-          episode: pos.episode,
-          runtime,
-          order,
-          status: 'pending',
-        },
-      });
-
-      pos.episode++;
-      remainingMinutes -= runtime;
-      order++;
     }
   }
 }

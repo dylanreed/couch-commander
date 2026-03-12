@@ -94,6 +94,114 @@ describe('Watchlist API', () => {
     });
   });
 
+  describe('PUT /api/watchlist/:id/days', () => {
+    it('rejects invalid day numbers', async () => {
+      const addRes = await request(app)
+        .post('/api/watchlist')
+        .send({ tmdbId: 1396 });
+      const entryId = addRes.body.id;
+
+      const res = await request(app)
+        .put(`/api/watchlist/${entryId}/days`)
+        .send({ days: [1, 8, -1] });
+
+      expect(res.status).toBe(400);
+    });
+
+    it('rejects non-integer days', async () => {
+      const addRes = await request(app)
+        .post('/api/watchlist')
+        .send({ tmdbId: 1396 });
+      const entryId = addRes.body.id;
+
+      const res = await request(app)
+        .put(`/api/watchlist/${entryId}/days`)
+        .send({ days: [1.5, 2.7] });
+
+      expect(res.status).toBe(400);
+    });
+
+    it('accepts valid days', async () => {
+      const addRes = await request(app)
+        .post('/api/watchlist')
+        .send({ tmdbId: 1396 });
+      const entryId = addRes.body.id;
+
+      // Promote so it's watching
+      await request(app).post(`/api/watchlist/${entryId}/promote`);
+
+      const res = await request(app)
+        .put(`/api/watchlist/${entryId}/days`)
+        .send({ days: [0, 3, 6] });
+
+      expect(res.status).toBe(200);
+    });
+  });
+
+  describe('PUT /api/watchlist/:id/episode', () => {
+    it('rejects non-numeric season', async () => {
+      const addRes = await request(app)
+        .post('/api/watchlist')
+        .send({ tmdbId: 1396 });
+      const entryId = addRes.body.id;
+
+      const res = await request(app)
+        .put(`/api/watchlist/${entryId}/episode`)
+        .send({ season: 'abc', episode: 1 });
+
+      expect(res.status).toBe(400);
+    });
+
+    it('rejects zero episode', async () => {
+      const addRes = await request(app)
+        .post('/api/watchlist')
+        .send({ tmdbId: 1396 });
+      const entryId = addRes.body.id;
+
+      const res = await request(app)
+        .put(`/api/watchlist/${entryId}/episode`)
+        .send({ season: 1, episode: 0 });
+
+      expect(res.status).toBe(400);
+    });
+  });
+
+  describe('invalid ID handling', () => {
+    it('returns 400 for non-numeric ID on delete', async () => {
+      const res = await request(app).delete('/api/watchlist/notanumber');
+      expect(res.status).toBe(400);
+    });
+
+    it('returns 400 for non-numeric ID on promote', async () => {
+      const res = await request(app).post('/api/watchlist/notanumber/promote');
+      expect(res.status).toBe(400);
+    });
+
+    it('returns 400 for non-numeric ID on finish', async () => {
+      const res = await request(app).post('/api/watchlist/notanumber/finish');
+      expect(res.status).toBe(400);
+    });
+
+    it('returns 400 for non-numeric ID on demote', async () => {
+      const res = await request(app).post('/api/watchlist/notanumber/demote');
+      expect(res.status).toBe(400);
+    });
+
+    it('returns 400 for non-numeric ID on days', async () => {
+      const res = await request(app)
+        .put('/api/watchlist/notanumber/days')
+        .send({ days: [1] });
+      expect(res.status).toBe(400);
+    });
+
+    it('returns 400 for non-numeric ID on episode', async () => {
+      const res = await request(app)
+        .put('/api/watchlist/notanumber/episode')
+        .send({ season: 1, episode: 1 });
+      expect(res.status).toBe(400);
+    });
+  });
+
   describe('POST /api/watchlist/:id/finish', () => {
     it('marks show as finished', async () => {
       // Add and promote a show

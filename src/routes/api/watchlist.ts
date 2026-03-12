@@ -10,6 +10,11 @@ import { prisma } from '../../lib/db';
 
 const router = Router();
 
+function parseId(id: string): number | null {
+  const parsed = parseInt(id, 10);
+  return isNaN(parsed) ? null : parsed;
+}
+
 router.post('/', async (req, res) => {
   const { tmdbId } = req.body;
 
@@ -42,10 +47,13 @@ router.get('/availability', async (req, res) => {
 });
 
 router.delete('/:id', async (req, res) => {
-  const { id } = req.params;
+  const parsedId = parseId(req.params.id);
+  if (parsedId === null) {
+    return res.status(400).json({ error: 'invalid id' });
+  }
 
   try {
-    await removeFromWatchlist(Number(id));
+    await removeFromWatchlist(parsedId);
     await clearSchedule();
     res.send(''); // htmx expects empty response for swap
   } catch (error) {
@@ -55,10 +63,13 @@ router.delete('/:id', async (req, res) => {
 });
 
 router.post('/:id/promote', async (req, res) => {
-  const { id } = req.params;
+  const parsedId = parseId(req.params.id);
+  if (parsedId === null) {
+    return res.status(400).json({ error: 'invalid id' });
+  }
 
   try {
-    const entry = await promoteFromQueue(parseInt(id));
+    const entry = await promoteFromQueue(parsedId);
     res.status(200).json(entry);
   } catch (error) {
     res.status(400).json({ error: (error as Error).message });
@@ -66,10 +77,13 @@ router.post('/:id/promote', async (req, res) => {
 });
 
 router.post('/:id/finish', async (req, res) => {
-  const { id } = req.params;
+  const parsedId = parseId(req.params.id);
+  if (parsedId === null) {
+    return res.status(400).json({ error: 'invalid id' });
+  }
 
   try {
-    const result = await finishShow(parseInt(id));
+    const result = await finishShow(parsedId);
     res.status(200).json(result);
   } catch (error) {
     res.status(400).json({ error: (error as Error).message });
@@ -77,10 +91,13 @@ router.post('/:id/finish', async (req, res) => {
 });
 
 router.post('/:id/demote', async (req, res) => {
-  const { id } = req.params;
+  const parsedId = parseId(req.params.id);
+  if (parsedId === null) {
+    return res.status(400).json({ error: 'invalid id' });
+  }
 
   try {
-    const entry = await demoteToQueue(parseInt(id));
+    const entry = await demoteToQueue(parsedId);
     await clearSchedule();
     res.status(200).json(entry);
   } catch (error) {
@@ -89,18 +106,25 @@ router.post('/:id/demote', async (req, res) => {
 });
 
 router.put('/:id/days', async (req, res) => {
-  const { id } = req.params;
+  const parsedId = parseId(req.params.id);
+  if (parsedId === null) {
+    return res.status(400).json({ error: 'invalid id' });
+  }
+
   const { days } = req.body;
 
   if (!Array.isArray(days)) {
     return res.status(400).json({ error: 'days must be an array' });
   }
 
-  // Validate days are 0-6
-  const validDays = days.filter((d) => typeof d === 'number' && d >= 0 && d <= 6);
+  // Validate all days are integers 0-6
+  const hasInvalid = days.some((d: any) => typeof d !== 'number' || !Number.isInteger(d) || d < 0 || d > 6);
+  if (hasInvalid) {
+    return res.status(400).json({ error: 'days must be integers between 0 and 6' });
+  }
 
   try {
-    const assignments = await setShowDays(parseInt(id), validDays);
+    const assignments = await setShowDays(parsedId, days);
     await clearSchedule(); // Force regeneration
     res.status(200).json({ success: true, assignments });
   } catch (error) {
@@ -109,10 +133,14 @@ router.put('/:id/days', async (req, res) => {
 });
 
 router.put('/:id/episode', async (req, res) => {
-  const { id } = req.params;
+  const parsedId = parseId(req.params.id);
+  if (parsedId === null) {
+    return res.status(400).json({ error: 'invalid id' });
+  }
+
   const { season, episode } = req.body;
 
-  console.log('Episode update request:', { id, season, episode, body: req.body });
+  console.log('Episode update request:', { id: parsedId, season, episode, body: req.body });
 
   const seasonNum = Number(season);
   const episodeNum = Number(episode);
@@ -123,7 +151,7 @@ router.put('/:id/episode', async (req, res) => {
 
   try {
     const entry = await prisma.watchlistEntry.update({
-      where: { id: parseInt(id) },
+      where: { id: parsedId },
       data: {
         currentSeason: seasonNum,
         currentEpisode: episodeNum,
