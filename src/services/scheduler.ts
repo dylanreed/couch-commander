@@ -17,6 +17,13 @@ type AssignmentWithEntry = {
 // Mutex to prevent concurrent schedule generation from locking SQLite
 let scheduleLock: Promise<void> = Promise.resolve();
 
+// Getter returns the live scheduleLock promise. CommonJS destructured imports
+// capture values at import time, so a getter is needed for the shutdown handler
+// to read the current promise rather than a stale reference.
+export function getScheduleLock(): Promise<void> {
+  return scheduleLock;
+}
+
 export async function getScheduleForDay(date: Date): Promise<ScheduleDayWithEpisodes | null> {
   const dayStart = new Date(date);
   dayStart.setHours(0, 0, 0, 0);

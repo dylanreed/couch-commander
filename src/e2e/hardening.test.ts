@@ -4,6 +4,7 @@
 import { describe, it, expect } from 'vitest';
 import request from 'supertest';
 import app from '../index';
+import { getScheduleLock } from '../services/scheduler';
 
 describe('Container Hardening', () => {
   describe('GET /ping', () => {
@@ -11,6 +12,18 @@ describe('Container Hardening', () => {
       const res = await request(app).get('/ping');
       expect(res.status).toBe(200);
       expect(res.body).toEqual({ status: 'ok' });
+    });
+  });
+
+  describe('Graceful shutdown', () => {
+    it('getScheduleLock returns a promise', () => {
+      const lock = getScheduleLock();
+      expect(lock).toBeInstanceOf(Promise);
+    });
+
+    it('getScheduleLock reflects current lock state', async () => {
+      const lock = getScheduleLock();
+      await expect(lock).resolves.toBeUndefined();
     });
   });
 });

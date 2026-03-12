@@ -4,7 +4,8 @@
 import express from 'express';
 import path from 'path';
 import dotenv from 'dotenv';
-import { getScheduleForDay, generateSchedule } from './services/scheduler';
+import { getScheduleForDay, generateSchedule, getScheduleLock } from './services/scheduler';
+import { prisma } from './lib/db';
 import watchlistRoutes from './routes/watchlist';
 import settingsRoutes from './routes/settings';
 import scheduleRoutes from './routes/schedule';
@@ -86,8 +87,36 @@ app.get('/', async (_req, res) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`Couch Commander running on http://localhost:${PORT}`);
-});
+// Only start the server when run directly, not when imported by tests
+if (require.main === module) {
+  const server = app.listen(PORT, () => {
+    console.log(`Couch Commander running on http://localhost:${PORT}`);
+  });
+
+  async function gracefulShutdown(signal: string) {
+    console.log(`\n${signal} received. Shutting down gracefully...`);
+    server.close(() => {
+      console.log('HTTP server closed');
+    });
+    await getScheduleLock();
+    await prisma.$disconnect();
+    console.log('Database disconnected');
+    process.exit(0);
+  }
+
+  function forceShutdown() {
+    console.error('Forced shutdown after timeout');
+    process.exit(1);
+  }
+
+  process.on('SIGTERM', () => {
+    setTimeout(forceShutdown, 5000).unref();
+    gracefulShutdown('SIGTERM');
+  });
+  process.on('SIGINT', () => {
+    setTimeout(forceShutdown, 5000).unref();
+    gracefulShutdown('SIGINT');
+  });
+}
 
 export default app;
