@@ -53,17 +53,17 @@ Your database lives in `./couch-commander-data/` on the host — back that direc
 
 Couch Commander fits naturally alongside Sonarr, Radarr, and Plex. It doesn't talk to them directly — it's a scheduling layer on top of whatever you're already watching. Same Docker network, same Nginx Proxy Manager setup, same Homepage dashboard.
 
-**Homepage widget** support is available via `/api/v1/system/status`. Add it to your Homepage config like any other service using the `X-Api-Key` header if you've set `API_KEY`.
+**Homepage widget** support is available via `/api/v1/system/status` — no API key needed. Add it to your Homepage config like any other Servarr service.
 
 ## API
 
-All endpoints under `/api/v1/` require the `X-Api-Key` header when `API_KEY` is set. The healthcheck endpoint is always unauthenticated.
+Endpoints under `/api/v1/` require the `X-Api-Key` header when `API_KEY` is set. System and health endpoints are unauthenticated so dashboard tools like Homepage can read them without configuration.
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| `GET` | `/ping` | No | Healthcheck — returns `pong` |
-| `GET` | `/api/v1/system/status` | Yes | App version, uptime, environment |
-| `GET` | `/api/v1/health` | Yes | Component health (database, TMDB) |
+| `GET` | `/ping` | No | Healthcheck — returns `{"status":"ok"}` |
+| `GET` | `/api/v1/system/status` | No | App version, uptime, environment |
+| `GET` | `/api/v1/health` | No | Component health (database, TMDB) |
 | `GET` | `/api/v1/shows/search?q=...` | Yes | Search shows via TMDB |
 | `POST` | `/api/v1/watchlist` | Yes | Add a show to the watchlist |
 
