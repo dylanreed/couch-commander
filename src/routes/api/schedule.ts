@@ -2,7 +2,7 @@
 // ABOUTME: Handles POST /api/schedule/regenerate to clear and rebuild the schedule.
 
 import { Router } from 'express';
-import { generateSchedule, markScheduleStale } from '../../services/scheduler';
+import { generateSchedule } from '../../services/scheduler';
 import { prisma } from '../../lib/db';
 
 const router = Router();

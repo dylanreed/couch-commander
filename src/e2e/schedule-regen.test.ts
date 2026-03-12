@@ -13,6 +13,7 @@ describe('POST /api/schedule/regenerate', () => {
     await prisma.showDayAssignment.deleteMany();
     await prisma.watchlistEntry.deleteMany();
     await prisma.show.deleteMany();
+    await prisma.settings.deleteMany();
   });
 
   describe('Overflow Shows', () => {
