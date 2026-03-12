@@ -12,6 +12,7 @@ import scheduleRoutes from './routes/schedule';
 import showsApiRoutes from './routes/api/shows';
 import watchlistApiRoutes from './routes/api/watchlist';
 import checkinApiRoutes from './routes/api/checkin';
+import systemApiRoutes from './routes/api/system';
 
 dotenv.config();
 
@@ -46,6 +47,8 @@ function renderWithLayout(
 app.use('/api/shows', showsApiRoutes);
 app.use('/api/watchlist', watchlistApiRoutes);
 app.use('/api/checkin', checkinApiRoutes);
+app.use('/api/v1/system', systemApiRoutes);
+app.use('/api/v1', systemApiRoutes);
 
 // Page routes
 app.use('/watchlist', watchlistRoutes);
