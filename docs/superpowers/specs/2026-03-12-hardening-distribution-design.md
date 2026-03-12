@@ -31,6 +31,7 @@ Three workstreams, all equally important:
 Add `SIGTERM`/`SIGINT` handlers in `index.ts`:
 
 - Stop accepting new HTTP connections
+- Await the schedule generation mutex (`scheduleLock`) so any in-progress generation finishes its writes before we disconnect
 - Wait for in-flight requests to finish (5s timeout)
 - Disconnect Prisma client (`prisma.$disconnect()`)
 - Exit cleanly
@@ -41,22 +42,20 @@ This prevents SQLite corruption when Docker stops the container.
 
 **Current problem:** The Docker healthcheck hits `/` which calls `generateSchedule(today, 14)` — a heavy write operation — every 30 seconds. This contributes to SQLite locking.
 
-**Fix:** Change the healthcheck in the Dockerfile to hit `GET /ping` instead. The `/ping` endpoint returns `{ status: "ok" }` with no DB access.
+**Fix:** Add `GET /ping` endpoint in `index.ts` first (simple `res.json({ status: "ok" })`, no DB access). Then change both the Dockerfile and docker-compose.yml healthchecks to hit `/ping`.
+
+**Implementation order:** The `/ping` endpoint must be added to `index.ts` in the same commit as the healthcheck change, or the container will fail healthchecks on deploy.
 
 ```dockerfile
-healthcheck:
-  test: ["CMD", "node", "-e", "require('http').get('http://localhost:4242/ping', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"]
-  interval: 30s
-  timeout: 10s
-  retries: 3
-  start_period: 15s
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=15s \
+  CMD node -e "require('http').get('http://localhost:4242/ping', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"
 ```
 
-Add `start_period` so the container has time to run migrations before the first check.
+docker-compose.yml and docker-compose.example.yml both get the matching healthcheck with `start_period: 15s`.
 
 ### 1.3 Startup Resilience
 
-Wrap the Prisma schema push (CMD in Dockerfile) so a failed migration doesn't silently leave the app running against a broken schema. Add retry logic:
+Wrap the Prisma schema push (CMD in Dockerfile) so a failed migration doesn't silently leave the app running against a broken schema:
 
 ```sh
 npx prisma db push --skip-generate || { echo "DB migration failed"; exit 1; }
@@ -85,11 +84,23 @@ Create `src/views/pages/error.ejs` — simple page showing "Something went wrong
 
 **Current problem:** Every visit to `/` regenerates 14 days of schedule, even if nothing changed. Every visit to `/schedule` regenerates 7 days.
 
-**Fix:** Before generating, check if a schedule already exists for the requested window. Only regenerate if:
-- No schedule exists for the date range
-- The schedule was invalidated (via `clearSchedule()` from watchlist changes)
+**Fix:** Track both staleness and the generated window size. Before generating, check:
 
-Add a `scheduleStale` flag (in-memory boolean, defaults to `true` on startup). `clearSchedule()` sets it to `true`. After successful generation, set to `false`. Page routes check the flag before calling `generateSchedule`.
+1. Is the schedule stale? (was `clearSchedule()` called since last generation?)
+2. Does the requested window extend beyond what was previously generated?
+
+Implementation:
+
+- `scheduleStale: boolean` — defaults to `true` on startup. `clearSchedule()` sets to `true`. Successful generation sets to `false`.
+- `lastGeneratedDays: number` — tracks the window size of the last generation. Defaults to `0`.
+- Generation runs if `scheduleStale === true` OR `requestedDays > lastGeneratedDays`.
+- After successful generation, set `scheduleStale = false` and `lastGeneratedDays = requestedDays`.
+
+This means: visiting `/schedule` (7 days) then `/` (14 days) generates twice (expanding the window), but visiting `/` then `/schedule` only generates once (14 already covers 7).
+
+### 1.7 Default Port
+
+Update the default port in `index.ts` from `5055` to `4242` to match the Dockerfile and all documentation. The `PORT` env var still overrides it.
 
 ---
 
@@ -115,7 +126,7 @@ Move all API routes under `/api/v1/`:
 | (new) | `GET /api/v1/health` | Health checks |
 | (new) | `GET /ping` | Unauthenticated ping |
 
-Keep current `/api/*` routes as aliases during transition so the existing HTMX frontend doesn't break. The frontend templates get updated to use `/api/v1/` paths.
+Keep current `/api/*` routes as **unauthenticated** aliases so the HTMX frontend continues to work during the transition. The aliases do NOT enforce API key auth — they exist solely to serve the web UI's fetch calls. Update HTMX templates to use `/api/v1/` paths, then remove the aliases in a future release.
 
 ### 2.2 API Key Authentication
 
@@ -126,8 +137,9 @@ New middleware: `src/middleware/apiKey.ts`
 - If `API_KEY` is not set, auth is disabled (single-user home network default)
 - `GET /ping` is always unauthenticated
 - Page routes (`/`, `/watchlist`, etc.) are unauthenticated — they're the web UI
+- Legacy `/api/*` aliases are unauthenticated — they serve the web UI's HTMX calls
 
-This matches Sonarr/Radarr behavior: API key protects the API, web UI is open.
+This matches Sonarr/Radarr behavior: API key protects the external API, web UI is open on the local network.
 
 ### 2.3 System Endpoints
 
@@ -203,6 +215,12 @@ services:
       - TMDB_API_KEY=your_key_here    # Required: get one at https://www.themoviedb.org/settings/api
       - API_KEY=                       # Optional: set to protect API endpoints
       - PORT=4242                      # Optional: change the port
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:4242/ping', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
 ```
 
 ### 3.3 README
@@ -223,16 +241,25 @@ Set GHCR package to public after first successful push. This requires a one-time
 
 ### 3.5 Version Tagging
 
-Update the GitHub Actions workflow to also tag images with the version from `package.json`:
+Update the GitHub Actions workflow to tag images with the version from `package.json`. Since `docker/metadata-action` doesn't have a built-in `{{version}}` variable, add a prior step to extract it:
 
 ```yaml
+- name: Read version from package.json
+  id: pkg
+  run: echo "version=$(node -p 'require(\"./package.json\").version')" >> "$GITHUB_OUTPUT"
+
+# Then in metadata-action tags:
 tags: |
   type=raw,value=latest
   type=sha,prefix=
-  type=raw,value={{version}}
+  type=raw,value=${{ steps.pkg.outputs.version }}
 ```
 
 This gives users `ghcr.io/dylanreed/couch-commander:1.0.0` for pinning.
+
+### 3.6 Repository URL Cleanup
+
+Update `package.json` repository and homepage URLs from `nervous-net/couch-commander` to `dylanreed/couch-commander` to match the actual GitHub org used for GHCR publishing.
 
 ---
 
@@ -240,24 +267,25 @@ This gives users `ghcr.io/dylanreed/couch-commander:1.0.0` for pinning.
 
 | File | Change |
 |------|--------|
-| `src/index.ts` | Graceful shutdown, schedule guard, `/ping` endpoint, mount v1 routes |
+| `src/index.ts` | Graceful shutdown (with mutex drain), schedule guard, `/ping` endpoint, mount v1 routes, default port to 4242 |
 | `src/lib/db.ts` | Add `synchronous = NORMAL` pragma |
 | `src/middleware/apiKey.ts` | New — API key auth middleware |
 | `src/routes/api/v1/*.ts` | New — versioned route files (or re-export existing) |
 | `src/routes/api/system.ts` | New — system/status and health endpoints |
-| `src/services/scheduler.ts` | Add `scheduleStale` flag, export `isScheduleStale()` |
+| `src/services/scheduler.ts` | Add `scheduleStale` + `lastGeneratedDays` guard, export `isScheduleStale()` |
 | `src/views/pages/error.ejs` | New — error page template |
-| `Dockerfile` | OCI labels, healthcheck pointing to `/ping`, `start_period` |
-| `docker-compose.yml` | Update healthcheck |
+| `Dockerfile` | OCI labels, HEALTHCHECK pointing to `/ping` with `start_period` |
+| `docker-compose.yml` | Update healthcheck to `/ping` with `start_period` |
 | `docker-compose.example.yml` | New — documented example for distribution |
-| `.github/workflows/docker-publish.yml` | Add version tag |
+| `.github/workflows/docker-publish.yml` | Add version extraction step + version tag |
 | `README.md` | Full rewrite |
-| `package.json` | Add `version` field (already 1.0.0) |
+| `package.json` | Fix repository URLs to `dylanreed/couch-commander` |
 
 ## Testing
 
 - Unit tests for API key middleware (with key, without key, wrong key, no key configured)
 - Unit tests for system/status and health endpoints
 - Integration test for `/ping`
-- Integration test for schedule guard (doesn't regenerate when not stale)
+- Integration test for schedule guard (doesn't regenerate when not stale, regenerates when window expands)
+- E2E test: app starts, `/ping` responds 200, `/api/v1/system/status` returns valid JSON, graceful shutdown completes without error
 - Existing tests continue to pass unchanged
