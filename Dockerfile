@@ -48,5 +48,8 @@ ENV PORT=4242
 
 EXPOSE 4242
 
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=15s \
+  CMD node -e "require('http').get('http://localhost:4242/ping', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"
+
 # Run migrations and start
-CMD ["sh", "-c", "npx prisma db push --skip-generate && node dist/index.js"]
+CMD ["sh", "-c", "npx prisma db push --skip-generate || { echo 'DB migration failed'; exit 1; } && node dist/index.js"]

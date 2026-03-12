@@ -15,7 +15,7 @@ import checkinApiRoutes from './routes/api/checkin';
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 5055;
+const PORT = process.env.PORT || 4242;
 
 // Middleware
 app.use(express.json());
@@ -50,6 +50,11 @@ app.use('/api/checkin', checkinApiRoutes);
 app.use('/watchlist', watchlistRoutes);
 app.use('/settings', settingsRoutes);
 app.use('/schedule', scheduleRoutes);
+
+// Unauthenticated ping for Docker healthchecks and load balancers
+app.get('/ping', (_req, res) => {
+  res.json({ status: 'ok' });
+});
 
 // Routes
 app.get('/health', (_req, res) => {
