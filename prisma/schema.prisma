@@ -98,10 +98,9 @@ model Settings {
   fridayMinutes       Int?
   saturdayMinutes     Int?
   sundayMinutes       Int?
-  schedulingMode      String  @default("sequential") // "sequential", "roundrobin", "genre"
+  schedulingMode      String  @default("sequential") // "sequential", "roundrobin"
   staggeredStart      Boolean @default(false)
   staggerEpisodes     Int     @default(3)  // Episodes before next show starts
-  genreRules          String  @default("[]") // JSON array of rules
   scheduleWindowDays  Int     @default(14)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
@@ -143,4 +142,14 @@ model RotationDayAssignment {
   createdAt        DateTime      @default(now())
 
   @@unique([rotationGroupId, dayOfWeek])
+}
+
+model DayGenrePreference {
+  id        Int    @id @default(autoincrement())
+  dayOfWeek Int    // 0=Sunday, 1=Monday, ... 6=Saturday
+  genre     String
+  createdAt DateTime @default(now())
+
+  @@unique([dayOfWeek, genre])
+  @@index([dayOfWeek])
 }
