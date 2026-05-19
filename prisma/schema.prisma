@@ -1,5 +1,5 @@
 // ABOUTME: Database schema for Couch Commander.
-// ABOUTME: Defines Show, WatchlistEntry, ScheduleDay, ScheduledEpisode, and Settings models.
+// ABOUTME: Defines Show, WatchlistEntry, ScheduleDay, ScheduledEpisode, Settings, and rotation group models.
 
 generator client {
   provider = "prisma-client-js"
@@ -42,7 +42,8 @@ model WatchlistEntry {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  dayAssignments ShowDayAssignment[]
+  dayAssignments  ShowDayAssignment[]
+  rotationMembers RotationMember[]
 
   @@unique([showId])
 }
@@ -76,10 +77,12 @@ model ScheduledEpisode {
   season        Int
   episode       Int
   runtime       Int       // In minutes
-  status        String    @default("pending") // "pending", "watched", "skipped"
-  order         Int       @default(0)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  status          String    @default("pending") // "pending", "watched", "skipped"
+  order           Int       @default(0)
+  rotationGroupId Int?
+  rotationGroup   RotationGroup? @relation(fields: [rotationGroupId], references: [id], onDelete: SetNull)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   @@unique([scheduleDayId, showId, season, episode])
 }
@@ -102,4 +105,41 @@ model Settings {
   scheduleWindowDays  Int     @default(14)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
+}
+
+model RotationGroup {
+  id            Int       @id @default(autoincrement())
+  name          String
+  dropOnFinish  Boolean   @default(true)
+  active        Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  members           RotationMember[]
+  dayAssignments    RotationDayAssignment[]
+  scheduledEpisodes ScheduledEpisode[]
+}
+
+model RotationMember {
+  id               Int            @id @default(autoincrement())
+  rotationGroupId  Int
+  rotationGroup    RotationGroup  @relation(fields: [rotationGroupId], references: [id], onDelete: Cascade)
+  watchlistEntryId Int
+  watchlistEntry   WatchlistEntry @relation(fields: [watchlistEntryId], references: [id], onDelete: Cascade)
+  order            Int
+  finished         Boolean        @default(false)
+  createdAt        DateTime       @default(now())
+
+  @@unique([rotationGroupId, watchlistEntryId])
+  @@unique([rotationGroupId, order])
+}
+
+model RotationDayAssignment {
+  id               Int           @id @default(autoincrement())
+  rotationGroupId  Int
+  rotationGroup    RotationGroup @relation(fields: [rotationGroupId], references: [id], onDelete: Cascade)
+  dayOfWeek        Int
+  createdAt        DateTime      @default(now())
+
+  @@unique([rotationGroupId, dayOfWeek])
 }
