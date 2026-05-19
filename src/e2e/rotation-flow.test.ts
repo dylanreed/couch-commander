@@ -7,11 +7,11 @@ import app from '../index';
 import { prisma } from '../lib/db';
 import { generateSchedule, getScheduleForDay, clearSchedule } from '../services/scheduler';
 
-async function seedShow(tmdbId: number, title: string, totalEpisodes = 50) {
+async function seedShow(tmdbId: number, title: string, totalEpisodes = 50, entryStatus = 'watching') {
   const show = await prisma.show.create({
     data: { tmdbId, title, genres: '[]', totalSeasons: 1, totalEpisodes, episodeRuntime: 30, status: 'Ended' },
   });
-  const entry = await prisma.watchlistEntry.create({ data: { showId: show.id, status: 'watching' } });
+  const entry = await prisma.watchlistEntry.create({ data: { showId: show.id, status: entryStatus } });
   return { show, entry };
 }
 
@@ -67,6 +67,28 @@ describe('rotation flow', () => {
     const members = await prisma.rotationMember.findMany({ where: { rotationGroupId: groupId } });
     const magMember = members.find(m => m.watchlistEntryId === mag.entry.id);
     expect(magMember!.finished).toBe(true);
+  });
+
+  it('schedules rotation members whose watchlist entry is queued (not yet promoted to watching)', async () => {
+    // Rotation membership is itself the signal of intent — a user who builds a
+    // rotation out of queued shows should not have to manually promote each
+    // entry to 'watching' before the scheduler will pick them.
+    const a = await seedShow(701, 'Queued A', 50, 'queued');
+    const b = await seedShow(702, 'Queued B', 50, 'queued');
+
+    const r = await request(app).post('/api/rotations').send({ name: 'Queued Sundays' });
+    const groupId = r.body.id;
+    await request(app).post(`/api/rotations/${groupId}/members`).send({ watchlistEntryId: a.entry.id });
+    await request(app).post(`/api/rotations/${groupId}/members`).send({ watchlistEntryId: b.entry.id });
+    await request(app).put(`/api/rotations/${groupId}/days`).send({ daysOfWeek: [0] });
+
+    const start = new Date('2026-05-17T00:00:00.000Z');
+    await generateSchedule(start, 14);
+
+    const sun1 = await getScheduleForDay(new Date('2026-05-17T00:00:00.000Z'));
+    const sun2 = await getScheduleForDay(new Date('2026-05-24T00:00:00.000Z'));
+    expect(sun1!.episodes.map(ep => ep.show.title)).toEqual(['Queued A']);
+    expect(sun2!.episodes.map(ep => ep.show.title)).toEqual(['Queued B']);
   });
 
   it('is idempotent across regenerations', async () => {

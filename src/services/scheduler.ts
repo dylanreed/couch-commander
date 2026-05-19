@@ -101,7 +101,9 @@ async function doGenerateSchedule(startDate: Date, days: number): Promise<void> 
     });
 
     // For each rotation group, pick the next-due member and synthesise an
-    // AssignmentWithEntry that carries the rotationGroupId tag.
+    // AssignmentWithEntry that carries the rotationGroupId tag. Rotation
+    // membership itself is the signal of intent — the WatchlistEntry status
+    // is not consulted here (pickNextMember already filters inactive entries).
     const rotationAssignments: AssignmentWithEntry[] = [];
     for (const rda of rotationDayAssignments) {
       const member = await pickNextMember(rda.rotationGroupId);
@@ -110,7 +112,7 @@ async function doGenerateSchedule(startDate: Date, days: number): Promise<void> 
         where: { id: member.watchlistEntryId },
         include: { show: true },
       });
-      if (!fullEntry || fullEntry.status !== 'watching') continue;
+      if (!fullEntry) continue;
       rotationAssignments.push({
         watchlistEntry: fullEntry,
         rotationGroupId: rda.rotationGroupId,
