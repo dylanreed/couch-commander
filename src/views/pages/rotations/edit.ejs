@@ -132,6 +132,7 @@
       async function revive(groupId, memberId) {
         const r = await fetch(`/api/rotations/${groupId}/members/${memberId}/revive`, { method: 'POST' });
         if (r.ok) location.reload();
+        else alert('Failed to revive member');
       }
 
       function moveUp(btn) { swapAdjacent(btn.closest('li'), -1); }
@@ -150,22 +151,30 @@
         const list = document.getElementById('member-list');
         const ids = Array.from(list.children).map(li => Number(li.dataset.memberId));
         const groupId = <%= group.id %>;
-        await fetch(`/api/rotations/${groupId}/members/reorder`, {
+        const r = await fetch(`/api/rotations/${groupId}/members/reorder`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ memberIds: ids }),
         });
+        if (!r.ok) {
+          alert('Failed to save member order — reloading');
+          location.reload();
+        }
       }
 
       document.querySelectorAll('.day-checkbox').forEach(cb => {
         cb.addEventListener('change', async () => {
           const checked = Array.from(document.querySelectorAll('.day-checkbox:checked')).map(c => Number(c.value));
           const groupId = <%= group.id %>;
-          await fetch(`/api/rotations/${groupId}/days`, {
+          const r = await fetch(`/api/rotations/${groupId}/days`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ daysOfWeek: checked }),
           });
+          if (!r.ok) {
+            alert('Failed to save day selection');
+            cb.checked = !cb.checked;
+          }
         });
       });
     </script>
