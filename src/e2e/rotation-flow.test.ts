@@ -91,6 +91,33 @@ describe('rotation flow', () => {
     expect(sun2!.episodes.map(ep => ep.show.title)).toEqual(['Queued B']);
   });
 
+  it('hides queued entries from the /watchlist queue section when they are in an active rotation', async () => {
+    // A show in an active rotation is already being scheduled via the
+    // rotation, so listing it in the queue section is redundant noise.
+    const a = await seedShow(601, 'In Rotation', 50, 'queued');
+    const b = await seedShow(602, 'Plain Queued', 50, 'queued');
+
+    const r = await request(app).post('/api/rotations').send({ name: 'Hide Me Queue' });
+    const groupId = r.body.id;
+    await request(app).post(`/api/rotations/${groupId}/members`).send({ watchlistEntryId: a.entry.id });
+
+    // While the rotation is active, "In Rotation" should not appear in the queue list.
+    let page = await request(app).get('/watchlist');
+    expect(page.status).toBe(200);
+    const queueStart = page.text.indexOf('<!-- Queue -->');
+    expect(queueStart).toBeGreaterThan(-1);
+    const queueSection = page.text.slice(queueStart);
+    expect(queueSection).not.toContain('In Rotation');
+    expect(queueSection).toContain('Plain Queued');
+
+    // Deactivate the rotation and the same entry should reappear in the queue.
+    await request(app).post(`/rotations/${groupId}`).send({ name: 'Hide Me Queue', active: '' });
+    page = await request(app).get('/watchlist');
+    const queueSection2 = page.text.slice(page.text.indexOf('<!-- Queue -->'));
+    expect(queueSection2).toContain('In Rotation');
+    expect(queueSection2).toContain('Plain Queued');
+  });
+
   it('is idempotent across regenerations', async () => {
     const a = await seedShow(801, 'A');
     const b = await seedShow(802, 'B');

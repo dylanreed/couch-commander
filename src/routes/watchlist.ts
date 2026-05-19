@@ -32,8 +32,16 @@ router.get('/', async (_req, res) => {
       orderBy: { priority: 'asc' },
     });
 
+    // Hide queued entries that are already being scheduled via an active
+    // rotation — they'd otherwise double-list as both "Queue" and a
+    // rotation pick on the schedule.
     const queued = await prisma.watchlistEntry.findMany({
-      where: { status: 'queued' },
+      where: {
+        status: 'queued',
+        NOT: {
+          rotationMembers: { some: { rotationGroup: { active: true } } },
+        },
+      },
       include: { show: true },
       orderBy: { priority: 'asc' },
     });
