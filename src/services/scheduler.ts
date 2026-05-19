@@ -98,7 +98,6 @@ async function doGenerateSchedule(startDate: Date, days: number): Promise<void> 
     // Fetch rotation groups assigned to this day-of-week (active only)
     const rotationDayAssignments = await prisma.rotationDayAssignment.findMany({
       where: { dayOfWeek, rotationGroup: { active: true } },
-      include: { rotationGroup: true },
     });
 
     // For each rotation group, pick the next-due member and synthesise an
