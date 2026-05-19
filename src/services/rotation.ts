@@ -42,6 +42,17 @@ export async function pickNextMember(rotationGroupId: number): Promise<RotationM
     const count = await prisma.scheduledEpisode.count({
       where: { rotationGroupId, showId: show.id },
     });
+
+    // All remaining episodes are already scheduled — mark finished and skip.
+    const remainingEpisodes = show.totalEpisodes - entry.currentEpisode + 1;
+    if (count >= remainingEpisodes) {
+      await prisma.rotationMember.update({
+        where: { id: member.id },
+        data: { finished: true },
+      });
+      continue;
+    }
+
     candidates.push({ member, count });
   }
 
