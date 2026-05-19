@@ -60,6 +60,7 @@ app.use('/api/v1', systemApiRoutes);  // Mounts /health at /api/v1/health
 app.use('/api/v1/shows', apiKeyAuth, showsApiRoutes);
 app.use('/api/v1/watchlist', apiKeyAuth, watchlistApiRoutes);
 app.use('/api/v1/checkin', apiKeyAuth, checkinApiRoutes);
+app.use('/api/v1/rotations', apiKeyAuth, rotationsApiRoutes);
 
 // Page routes
 app.use('/watchlist', watchlistRoutes);
