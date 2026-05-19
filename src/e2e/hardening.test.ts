@@ -89,4 +89,33 @@ describe('Container Hardening', () => {
       expect(shouldRegenerate(7)).toBe(true);
     });
   });
+
+  describe('Rotation API hardening', () => {
+    it('rejects /api/v1/rotations without API key when API_KEY is set', async () => {
+      vi.stubEnv('API_KEY', 'test-secret');
+      const res = await request(app).get('/api/v1/rotations');
+      expect(res.status).toBe(401);
+      vi.unstubAllEnvs();
+    });
+
+    it('accepts /api/v1/rotations with the correct API key', async () => {
+      vi.stubEnv('API_KEY', 'test-secret');
+      const res = await request(app)
+        .get('/api/v1/rotations')
+        .set('X-Api-Key', 'test-secret');
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body)).toBe(true);
+      vi.unstubAllEnvs();
+    });
+
+    it('GET /api/rotations returns [] on an empty database', async () => {
+      const { prisma } = await import('../lib/db');
+      await prisma.rotationDayAssignment.deleteMany();
+      await prisma.rotationMember.deleteMany();
+      await prisma.rotationGroup.deleteMany();
+      const res = await request(app).get('/api/rotations');
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual([]);
+    });
+  });
 });
