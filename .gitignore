@@ -8,3 +8,5 @@ dist/
 prisma/test.db
 
 .DS_Store
+
+.beads/
