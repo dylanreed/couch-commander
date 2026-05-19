@@ -206,6 +206,15 @@ async function fillDaySequential(
       pos.episode++;
       remainingMinutes -= runtime;
       order++;
+
+      // If this was the last available episode for a rotation member, drop them
+      // from rotation so the next pick skips this member.
+      if (assignment.rotationGroupId && pos.episode > entry.show.totalEpisodes) {
+        await prisma.rotationMember.updateMany({
+          where: { rotationGroupId: assignment.rotationGroupId, watchlistEntryId: entry.id },
+          data: { finished: true },
+        });
+      }
     }
   }
 }
@@ -262,6 +271,13 @@ async function fillDayRoundRobin(
         remainingMinutes -= runtime;
         order++;
         scheduledThisPass = true;
+
+        if (assignment.rotationGroupId && pos.episode > entry.show.totalEpisodes) {
+          await prisma.rotationMember.updateMany({
+            where: { rotationGroupId: assignment.rotationGroupId, watchlistEntryId: entry.id },
+            data: { finished: true },
+          });
+        }
       }
     }
   }
