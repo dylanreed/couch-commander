@@ -4,6 +4,7 @@
 import { prisma } from '../lib/db';
 import { getSettings, getMinutesForDay } from './settings';
 import { isEpisodeAvailable } from './tmdb';
+import { pickNextMember } from './rotation';
 import type { ScheduleDay, ScheduledEpisode, Show, WatchlistEntry } from '@prisma/client';
 
 export type ScheduleDayWithEpisodes = ScheduleDay & {
@@ -12,6 +13,7 @@ export type ScheduleDayWithEpisodes = ScheduleDay & {
 
 type AssignmentWithEntry = {
   watchlistEntry: WatchlistEntry & { show: Show };
+  rotationGroupId?: number;
 };
 
 // Mutex to prevent concurrent schedule generation from locking SQLite
@@ -93,8 +95,37 @@ async function doGenerateSchedule(startDate: Date, days: number): Promise<void> 
       },
     });
 
+    // Fetch rotation groups assigned to this day-of-week (active only)
+    const rotationDayAssignments = await prisma.rotationDayAssignment.findMany({
+      where: { dayOfWeek, rotationGroup: { active: true } },
+      include: { rotationGroup: true },
+    });
+
+    // For each rotation group, pick the next-due member and synthesise an
+    // AssignmentWithEntry that carries the rotationGroupId tag.
+    const rotationAssignments: AssignmentWithEntry[] = [];
+    for (const rda of rotationDayAssignments) {
+      const member = await pickNextMember(rda.rotationGroupId);
+      if (!member) continue;
+      const fullEntry = await prisma.watchlistEntry.findUnique({
+        where: { id: member.watchlistEntryId },
+        include: { show: true },
+      });
+      if (!fullEntry || fullEntry.status !== 'watching') continue;
+      rotationAssignments.push({
+        watchlistEntry: fullEntry,
+        rotationGroupId: rda.rotationGroupId,
+      });
+    }
+
+    // Merge direct + rotation assignments
+    const allAssignments: AssignmentWithEntry[] = [
+      ...assignments,
+      ...rotationAssignments,
+    ];
+
     // Initialize positions for shows we haven't seen yet
-    for (const assignment of assignments) {
+    for (const assignment of allAssignments) {
       const entry = assignment.watchlistEntry;
       if (!positions.has(entry.id)) {
         positions.set(entry.id, {
@@ -118,12 +149,12 @@ async function doGenerateSchedule(startDate: Date, days: number): Promise<void> 
 
     // Fill day with episodes from assigned shows
     if (settings.schedulingMode === 'sequential') {
-      await fillDaySequential(scheduleDay.id, assignments, positions, minutesForDay);
+      await fillDaySequential(scheduleDay.id, allAssignments, positions, minutesForDay);
     } else if (settings.schedulingMode === 'roundrobin') {
-      await fillDayRoundRobin(scheduleDay.id, assignments, positions, minutesForDay);
+      await fillDayRoundRobin(scheduleDay.id, allAssignments, positions, minutesForDay);
     } else {
       console.warn(`Unknown scheduling mode "${settings.schedulingMode}", falling back to sequential`);
-      await fillDaySequential(scheduleDay.id, assignments, positions, minutesForDay);
+      await fillDaySequential(scheduleDay.id, allAssignments, positions, minutesForDay);
     }
   }
 
@@ -169,6 +200,7 @@ async function fillDaySequential(
           runtime,
           order,
           status: 'pending',
+          rotationGroupId: assignment.rotationGroupId ?? null,
         },
       });
 
@@ -223,6 +255,7 @@ async function fillDayRoundRobin(
             runtime,
             order,
             status: 'pending',
+            rotationGroupId: assignment.rotationGroupId ?? null,
           },
         });
 

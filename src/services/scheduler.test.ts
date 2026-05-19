@@ -22,6 +22,9 @@ describe('Scheduler Service', () => {
     await prisma.scheduledEpisode.deleteMany();
     await prisma.scheduleDay.deleteMany();
     await prisma.showDayAssignment.deleteMany();
+    await prisma.rotationDayAssignment.deleteMany();
+    await prisma.rotationMember.deleteMany();
+    await prisma.rotationGroup.deleteMany();
     await prisma.watchlistEntry.deleteMany();
     await prisma.show.deleteMany();
     await prisma.settings.deleteMany();
@@ -483,6 +486,82 @@ describe('Scheduler Service', () => {
         (ep) => ep.showId === show.id
       );
       expect(scheduledForShow.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('rotation group scheduling', () => {
+    it('contributes one episode per day from the next-due rotation member', async () => {
+      const s1 = await prisma.show.create({ data: { tmdbId: 11, title: 'MSW', genres: '[]', totalSeasons: 1, totalEpisodes: 50, episodeRuntime: 30, status: 'Ended' } });
+      const s2 = await prisma.show.create({ data: { tmdbId: 12, title: 'DM',  genres: '[]', totalSeasons: 1, totalEpisodes: 50, episodeRuntime: 30, status: 'Ended' } });
+      const s3 = await prisma.show.create({ data: { tmdbId: 13, title: 'MAG', genres: '[]', totalSeasons: 1, totalEpisodes: 50, episodeRuntime: 30, status: 'Ended' } });
+      const e1 = await prisma.watchlistEntry.create({ data: { showId: s1.id, status: 'watching' } });
+      const e2 = await prisma.watchlistEntry.create({ data: { showId: s2.id, status: 'watching' } });
+      const e3 = await prisma.watchlistEntry.create({ data: { showId: s3.id, status: 'watching' } });
+
+      const group = await prisma.rotationGroup.create({ data: { name: 'Sunday Mystery Hour' } });
+      await prisma.rotationMember.create({ data: { rotationGroupId: group.id, watchlistEntryId: e1.id, order: 0 } });
+      await prisma.rotationMember.create({ data: { rotationGroupId: group.id, watchlistEntryId: e2.id, order: 1 } });
+      await prisma.rotationMember.create({ data: { rotationGroupId: group.id, watchlistEntryId: e3.id, order: 2 } });
+
+      const start = new Date('2026-05-17T00:00:00.000Z'); // Sunday
+      await prisma.rotationDayAssignment.create({ data: { rotationGroupId: group.id, dayOfWeek: 0 } });
+
+      await prisma.settings.upsert({
+        where: { id: 1 },
+        create: { id: 1, weekdayMinutes: 60, weekendMinutes: 60, schedulingMode: 'sequential' },
+        update: { weekdayMinutes: 60, weekendMinutes: 60, schedulingMode: 'sequential' },
+      });
+
+      await generateSchedule(start, 22);
+
+      const sundayDates = [0, 7, 14, 21].map(i => {
+        const d = new Date(start); d.setDate(d.getDate() + i); d.setHours(0, 0, 0, 0); return d;
+      });
+      const sundays = await Promise.all(sundayDates.map(d => getScheduleForDay(d)));
+      const sundayShows = sundays.map(day => day!.episodes.map(ep => ep.show.title));
+      expect(sundayShows).toEqual([['MSW'], ['DM'], ['MAG'], ['MSW']]);
+    });
+
+    it('is idempotent across re-generation', async () => {
+      const s1 = await prisma.show.create({ data: { tmdbId: 21, title: 'A', genres: '[]', totalSeasons: 1, totalEpisodes: 50, episodeRuntime: 30, status: 'Ended' } });
+      const s2 = await prisma.show.create({ data: { tmdbId: 22, title: 'B', genres: '[]', totalSeasons: 1, totalEpisodes: 50, episodeRuntime: 30, status: 'Ended' } });
+      const e1 = await prisma.watchlistEntry.create({ data: { showId: s1.id, status: 'watching' } });
+      const e2 = await prisma.watchlistEntry.create({ data: { showId: s2.id, status: 'watching' } });
+      const group = await prisma.rotationGroup.create({ data: { name: 'Pair' } });
+      await prisma.rotationMember.create({ data: { rotationGroupId: group.id, watchlistEntryId: e1.id, order: 0 } });
+      await prisma.rotationMember.create({ data: { rotationGroupId: group.id, watchlistEntryId: e2.id, order: 1 } });
+      await prisma.rotationDayAssignment.create({ data: { rotationGroupId: group.id, dayOfWeek: 0 } });
+      await prisma.settings.upsert({
+        where: { id: 1 },
+        create: { id: 1, weekdayMinutes: 60, weekendMinutes: 60, schedulingMode: 'sequential' },
+        update: { weekdayMinutes: 60, weekendMinutes: 60, schedulingMode: 'sequential' },
+      });
+
+      const start = new Date('2026-05-17T00:00:00.000Z');
+      await generateSchedule(start, 14);
+      const first = (await getScheduleForDay(new Date('2026-05-17T00:00:00.000Z')))!.episodes[0].show.title;
+      await generateSchedule(start, 14);
+      const second = (await getScheduleForDay(new Date('2026-05-17T00:00:00.000Z')))!.episodes[0].show.title;
+      expect(first).toBe(second);
+    });
+
+    it('tags scheduled rotation episodes with the rotationGroupId', async () => {
+      const s = await prisma.show.create({ data: { tmdbId: 31, title: 'X', genres: '[]', totalSeasons: 1, totalEpisodes: 10, episodeRuntime: 30, status: 'Ended' } });
+      const e = await prisma.watchlistEntry.create({ data: { showId: s.id, status: 'watching' } });
+      const group = await prisma.rotationGroup.create({ data: { name: 'Single' } });
+      await prisma.rotationMember.create({ data: { rotationGroupId: group.id, watchlistEntryId: e.id, order: 0 } });
+      await prisma.rotationDayAssignment.create({ data: { rotationGroupId: group.id, dayOfWeek: 0 } });
+      await prisma.settings.upsert({
+        where: { id: 1 },
+        create: { id: 1, weekdayMinutes: 60, weekendMinutes: 60, schedulingMode: 'sequential' },
+        update: { weekdayMinutes: 60, weekendMinutes: 60, schedulingMode: 'sequential' },
+      });
+
+      const start = new Date('2026-05-17T00:00:00.000Z');
+      await generateSchedule(start, 7);
+      const ep = await prisma.scheduledEpisode.findFirst({ where: { rotationGroupId: group.id } });
+      expect(ep).not.toBeNull();
+      expect(ep!.rotationGroupId).toBe(group.id);
     });
   });
 });
