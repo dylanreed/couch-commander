@@ -1,0 +1,173 @@
+<%# ABOUTME: Edit view for a rotation group: name, days, members. %>
+<%# ABOUTME: Uses fetch() for member add/remove/reorder so we avoid full page reloads. %>
+
+<% var dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']; %>
+
+<div class="space-y-8">
+  <!-- Header -->
+  <div class="flex items-center justify-between">
+    <h1 class="font-display text-4xl font-semibold text-lounge-cream"><%= group ? group.name : 'New rotation' %></h1>
+    <a href="/rotations" class="text-sm text-lounge-gold hover:text-lounge-gold-dim transition-colors">← Back</a>
+  </div>
+
+  <% if (!group) { %>
+    <!-- New rotation form -->
+    <div class="bg-lounge-surface rounded-2xl p-6 border border-lounge-border max-w-md">
+      <form method="POST" action="/rotations" class="space-y-4">
+        <div>
+          <label class="block text-sm text-lounge-muted mb-2">Name</label>
+          <input name="name" required class="w-full px-4 py-2.5" placeholder="Sunday Mystery Hour" />
+        </div>
+        <button type="submit" class="btn-gold px-6 py-2.5 rounded-xl">Create</button>
+      </form>
+    </div>
+  <% } else { %>
+    <!-- Edit rotation settings -->
+    <div class="bg-lounge-surface rounded-2xl p-6 border border-lounge-border max-w-2xl">
+      <form method="POST" action="/rotations/<%= group.id %>" class="space-y-5">
+        <div>
+          <label class="block text-sm text-lounge-muted mb-2">Name</label>
+          <input name="name" required value="<%= group.name %>" class="w-full px-4 py-2.5" />
+        </div>
+
+        <div>
+          <label class="block text-sm text-lounge-muted mb-2">Days</label>
+          <div class="flex gap-2 flex-wrap" id="day-toggles">
+            <% for (var d = 0; d < 7; d++) { %>
+              <label class="inline-flex items-center gap-1.5 cursor-pointer">
+                <input type="checkbox" class="day-checkbox sr-only peer" value="<%= d %>" <%= days.includes(d) ? 'checked' : '' %> />
+                <span class="px-3 py-1.5 text-sm rounded-lg transition-all
+                             peer-checked:bg-lounge-gold peer-checked:text-lounge-bg
+                             bg-lounge-card text-lounge-muted hover:bg-lounge-border">
+                  <%= dayNames[d] %>
+                </span>
+              </label>
+            <% } %>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-6 pt-1">
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" name="dropOnFinish" class="accent-lounge-gold w-4 h-4" <%= group.dropOnFinish ? 'checked' : '' %> />
+            <span class="text-sm text-lounge-cream">Drop members when finished</span>
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" name="active" class="accent-lounge-gold w-4 h-4" <%= group.active ? 'checked' : '' %> />
+            <span class="text-sm text-lounge-cream">Active</span>
+          </label>
+        </div>
+
+        <button type="submit" class="btn-gold px-6 py-2.5 rounded-xl">Save</button>
+      </form>
+    </div>
+
+    <!-- Members section -->
+    <div class="max-w-2xl">
+      <h2 class="font-display text-2xl font-semibold text-lounge-cream mb-4">Members</h2>
+
+      <ol id="member-list" class="space-y-2">
+        <% members.forEach(function(m) { %>
+          <li class="flex items-center gap-3 p-3 bg-lounge-surface rounded-xl border border-lounge-border" data-member-id="<%= m.id %>">
+            <span class="font-mono text-sm text-lounge-muted w-6 text-right flex-shrink-0"><%= m.order + 1 %>.</span>
+            <span class="flex-1 text-lounge-cream">
+              <%= m.watchlistEntry.show.title %>
+              <span class="text-xs text-lounge-muted ml-1">(S<%= m.watchlistEntry.currentSeason %>E<%= m.watchlistEntry.currentEpisode %>)</span>
+              <% if (m.finished) { %>
+                <span class="text-xs text-lounge-muted">&middot; finished</span>
+                <button type="button" class="ml-2 text-xs text-lounge-gold hover:text-lounge-gold-dim transition-colors" onclick="revive(<%= group.id %>, <%= m.id %>)">Revive</button>
+              <% } %>
+            </span>
+            <div class="flex items-center gap-1 flex-shrink-0">
+              <button type="button" class="px-2 py-1 text-xs text-lounge-muted hover:text-lounge-cream bg-lounge-card hover:bg-lounge-border rounded transition-colors" onclick="moveUp(this)">↑</button>
+              <button type="button" class="px-2 py-1 text-xs text-lounge-muted hover:text-lounge-cream bg-lounge-card hover:bg-lounge-border rounded transition-colors" onclick="moveDown(this)">↓</button>
+              <button type="button" class="px-2 py-1 text-xs text-red-400 hover:text-lounge-bg hover:bg-red-400 bg-lounge-card rounded transition-colors" onclick="removeMember(<%= group.id %>, <%= m.id %>)">×</button>
+            </div>
+          </li>
+        <% }); %>
+      </ol>
+
+      <% if (members.length === 0) { %>
+        <div class="p-4 bg-lounge-surface rounded-xl border border-lounge-border text-center">
+          <p class="text-sm text-lounge-muted">No members yet. Add a show below.</p>
+        </div>
+      <% } %>
+
+      <!-- Add member -->
+      <div class="mt-4 flex gap-2">
+        <select id="add-entry" class="flex-1 px-4 py-2.5 rounded-xl">
+          <option value="">Add a show…</option>
+          <% allEntries.forEach(function(e) { %>
+            <option value="<%= e.id %>"><%= e.show.title %></option>
+          <% }); %>
+        </select>
+        <button type="button" class="btn-gold px-4 py-2.5 rounded-xl text-sm" onclick="addMember(<%= group.id %>)">Add</button>
+      </div>
+
+      <!-- Delete rotation -->
+      <form method="POST" action="/rotations/<%= group.id %>/delete" class="mt-12" onsubmit="return confirm('Delete this rotation?')">
+        <button type="submit" class="px-4 py-2 rounded-xl text-sm bg-lounge-card text-red-400 hover:bg-red-400 hover:text-lounge-bg transition-colors border border-lounge-border">Delete rotation</button>
+      </form>
+    </div>
+
+    <script>
+      async function addMember(groupId) {
+        const sel = document.getElementById('add-entry');
+        const id = sel.value;
+        if (!id) return;
+        const r = await fetch(`/api/rotations/${groupId}/members`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ watchlistEntryId: Number(id) }),
+        });
+        if (r.ok) location.reload();
+        else alert((await r.json()).error || 'Failed');
+      }
+
+      async function removeMember(groupId, memberId) {
+        if (!confirm('Remove from rotation?')) return;
+        const r = await fetch(`/api/rotations/${groupId}/members/${memberId}`, { method: 'DELETE' });
+        if (r.ok) location.reload();
+      }
+
+      async function revive(groupId, memberId) {
+        const r = await fetch(`/api/rotations/${groupId}/members/${memberId}/revive`, { method: 'POST' });
+        if (r.ok) location.reload();
+      }
+
+      function moveUp(btn) { swapAdjacent(btn.closest('li'), -1); }
+      function moveDown(btn) { swapAdjacent(btn.closest('li'), +1); }
+
+      function swapAdjacent(li, direction) {
+        const list = document.getElementById('member-list');
+        const sibling = direction === -1 ? li.previousElementSibling : li.nextElementSibling;
+        if (!sibling) return;
+        if (direction === -1) list.insertBefore(li, sibling);
+        else list.insertBefore(sibling, li);
+        persistOrder();
+      }
+
+      async function persistOrder() {
+        const list = document.getElementById('member-list');
+        const ids = Array.from(list.children).map(li => Number(li.dataset.memberId));
+        const groupId = <%= group.id %>;
+        await fetch(`/api/rotations/${groupId}/members/reorder`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ memberIds: ids }),
+        });
+      }
+
+      document.querySelectorAll('.day-checkbox').forEach(cb => {
+        cb.addEventListener('change', async () => {
+          const checked = Array.from(document.querySelectorAll('.day-checkbox:checked')).map(c => Number(c.value));
+          const groupId = <%= group.id %>;
+          await fetch(`/api/rotations/${groupId}/days`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ daysOfWeek: checked }),
+          });
+        });
+      });
+    </script>
+  <% } %>
+</div>

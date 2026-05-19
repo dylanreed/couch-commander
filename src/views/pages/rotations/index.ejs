@@ -1,0 +1,49 @@
+<%# ABOUTME: List page for rotation groups — cards with members and days. %>
+<%# ABOUTME: Click into a card to edit. %>
+
+<div class="space-y-8">
+  <!-- Header -->
+  <div class="flex items-end justify-between">
+    <div>
+      <h1 class="font-display text-4xl font-semibold text-lounge-cream">Rotations</h1>
+      <p class="text-lounge-muted mt-1">Cycle through shows on a schedule</p>
+    </div>
+    <a href="/rotations/new" class="btn-gold px-4 py-2 rounded-xl text-sm">+ New rotation</a>
+  </div>
+
+  <% if (groups.length === 0) { %>
+    <div class="bg-lounge-surface rounded-2xl p-8 text-center border border-lounge-border">
+      <p class="text-lounge-muted">No rotations yet. Create one to cycle through a set of shows on a given day.</p>
+    </div>
+  <% } %>
+
+  <div class="grid gap-4 md:grid-cols-2">
+    <% var dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']; %>
+    <% groups.forEach(function(g) { %>
+      <a href="/rotations/<%= g.id %>" class="block p-5 bg-lounge-surface rounded-2xl border border-lounge-border card-hover">
+        <div class="flex items-center justify-between">
+          <h2 class="font-display text-lg font-semibold text-lounge-cream"><%= g.name %></h2>
+          <% if (!g.active) { %>
+            <span class="text-xs px-2 py-0.5 rounded-full bg-lounge-card text-lounge-muted">paused</span>
+          <% } %>
+        </div>
+        <p class="text-sm text-lounge-muted mt-1">
+          <%= g.members.length %> show<%= g.members.length === 1 ? '' : 's' %> &middot;
+          <%= g.dayAssignments.length === 0 ? 'no days' : g.dayAssignments.map(function(d){ return dayNames[d.dayOfWeek]; }).join(', ') %>
+        </p>
+        <% if (g.members.length > 0) { %>
+          <ol class="mt-3 text-sm list-decimal list-inside space-y-1 text-lounge-cream">
+            <% g.members.forEach(function(m) { %>
+              <li>
+                <%= m.watchlistEntry.show.title %>
+                <% if (m.finished) { %>
+                  <span class="text-xs text-lounge-muted">(finished)</span>
+                <% } %>
+              </li>
+            <% }); %>
+          </ol>
+        <% } %>
+      </a>
+    <% }); %>
+  </div>
+</div>

@@ -15,6 +15,7 @@ import checkinApiRoutes from './routes/api/checkin';
 import systemApiRoutes from './routes/api/system';
 import scheduleApiRoutes from './routes/api/schedule';
 import rotationsApiRoutes from './routes/api/rotations';
+import rotationRoutes from './routes/rotations';
 import { apiKeyAuth } from './middleware/apiKey';
 
 dotenv.config();
@@ -66,6 +67,7 @@ app.use('/api/v1/rotations', apiKeyAuth, rotationsApiRoutes);
 app.use('/watchlist', watchlistRoutes);
 app.use('/settings', settingsRoutes);
 app.use('/schedule', scheduleRoutes);
+app.use('/rotations', rotationRoutes);
 
 // Unauthenticated ping for Docker healthchecks and load balancers
 app.get('/ping', (_req, res) => {
