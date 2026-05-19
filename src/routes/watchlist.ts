@@ -24,7 +24,11 @@ router.get('/', async (_req, res) => {
   try {
     const watching = await prisma.watchlistEntry.findMany({
       where: { status: 'watching' },
-      include: { show: true, dayAssignments: true },
+      include: {
+        show: true,
+        dayAssignments: true,
+        rotationMembers: { include: { rotationGroup: true } },
+      },
       orderBy: { priority: 'asc' },
     });
 

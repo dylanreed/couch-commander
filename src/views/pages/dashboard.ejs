@@ -23,7 +23,9 @@
       <div class="space-y-3">
         <% yesterdayEpisodes.forEach(ep => { %>
         <div class="flex items-center gap-4 bg-lounge-card rounded-xl p-4">
-          <span class="flex-1 text-lounge-cream"><%= ep.show.title %> <span class="text-lounge-muted">S<%= ep.season %>E<%= ep.episode %></span></span>
+          <span class="flex-1 text-lounge-cream">
+            <% if (ep.rotationGroup) { %><span class="rotation-chip">&#8635; <%= ep.rotationGroup.name %></span><% } %><%= ep.show.title %> <span class="text-lounge-muted">S<%= ep.season %>E<%= ep.episode %></span>
+          </span>
           <div class="flex gap-4">
             <label class="flex items-center gap-2 cursor-pointer">
               <input type="radio" name="ep_<%= ep.id %>" value="watched" checked class="accent-lounge-gold">
@@ -82,7 +84,9 @@
 
       <!-- Info -->
       <div class="flex-1 min-w-0">
-        <h3 class="font-display text-lg font-semibold text-lounge-cream truncate"><%= ep.show.title %></h3>
+        <h3 class="font-display text-lg font-semibold text-lounge-cream truncate">
+          <% if (ep.rotationGroup) { %><span class="rotation-chip">&#8635; <%= ep.rotationGroup.name %></span><% } %><%= ep.show.title %>
+        </h3>
         <p class="text-lounge-muted mt-1">
           Season <%= ep.season %>, Episode <%= ep.episode %>
         </p>

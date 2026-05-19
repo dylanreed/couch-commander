@@ -149,6 +149,13 @@ async function updateEpisode(entryId) {
                   <span class="text-xs px-2 py-0.5 rounded-full bg-lounge-card text-lounge-muted">Ended</span>
                   <% } %>
                 </div>
+                <% if (entry.rotationMembers && entry.rotationMembers.length > 0) { %>
+                <div class="mt-1 flex flex-wrap gap-1">
+                  <% entry.rotationMembers.forEach(function(rm) { %>
+                  <a href="/rotations/<%= rm.rotationGroup.id %>" class="rotation-chip">&#8635; <%= rm.rotationGroup.name %></a>
+                  <% }); %>
+                </div>
+                <% } %>
               </div>
 
               <!-- Actions -->

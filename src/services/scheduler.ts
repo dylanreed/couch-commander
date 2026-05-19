@@ -5,10 +5,10 @@ import { prisma } from '../lib/db';
 import { getSettings, getMinutesForDay } from './settings';
 import { isEpisodeAvailable } from './tmdb';
 import { pickNextMember } from './rotation';
-import type { ScheduleDay, ScheduledEpisode, Show, WatchlistEntry } from '@prisma/client';
+import type { ScheduleDay, ScheduledEpisode, Show, WatchlistEntry, RotationGroup } from '@prisma/client';
 
 export type ScheduleDayWithEpisodes = ScheduleDay & {
-  episodes: (ScheduledEpisode & { show: Show })[];
+  episodes: (ScheduledEpisode & { show: Show; rotationGroup: RotationGroup | null })[];
 };
 
 type AssignmentWithEntry = {
@@ -52,7 +52,7 @@ export async function getScheduleForDay(date: Date): Promise<ScheduleDayWithEpis
     where: { date: dayStart },
     include: {
       episodes: {
-        include: { show: true },
+        include: { show: true, rotationGroup: true },
         orderBy: { order: 'asc' },
       },
     },

@@ -72,7 +72,9 @@
             <span class="w-1.5 h-1.5 rounded-full bg-lounge-muted"></span>
           </span>
           <% } %>
-          <span class="flex-1 text-lounge-cream"><%= ep.show.title %></span>
+          <span class="flex-1 text-lounge-cream">
+            <% if (ep.rotationGroup) { %><span class="rotation-chip">&#8635; <%= ep.rotationGroup.name %></span><% } %><%= ep.show.title %>
+          </span>
           <span class="text-lounge-muted">S<%= ep.season %>E<%= ep.episode %></span>
           <span class="text-xs px-2 py-0.5 rounded-full bg-lounge-surface text-lounge-muted"><%= ep.runtime %>m</span>
         </div>
