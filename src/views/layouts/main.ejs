@@ -12,6 +12,27 @@
 
   <link rel="stylesheet" href="/css/styles.css">
   <script src="/js/htmx.min.js"></script>
+  <script>
+    // Some browser extensions silently prevent the htmx <script> tag from
+    // defining window.htmx (the script downloads but the IIFE never lands on
+    // window). Detect that case, re-fetch the file via fetch() — which the
+    // extensions don't intercept — eval it, and process the DOM.
+    if (typeof htmx === 'undefined') {
+      fetch('/js/htmx.min.js')
+        .then(function (r) { return r.text(); })
+        .then(function (t) {
+          (0, eval)(t);
+          if (typeof htmx !== 'undefined') {
+            var init = function () { htmx.process(document.body); };
+            if (document.readyState === 'loading') {
+              document.addEventListener('DOMContentLoaded', init);
+            } else {
+              init();
+            }
+          }
+        });
+    }
+  </script>
 
   <style>
     /* Evening Lounge - Custom Styles */
