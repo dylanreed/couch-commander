@@ -2,11 +2,13 @@
 // ABOUTME: Tests: add show -> promote (auto-assign) -> generate schedule -> check in.
 
 import { describe, it, expect, beforeEach } from 'vitest';
+import request from 'supertest';
+import app from '../index';
 import { prisma } from '../lib/db';
 import { cacheShow } from '../services/showCache';
 import { addToWatchlist, promoteFromQueue, finishShow } from '../services/watchlist';
 import { updateSettings } from '../services/settings';
-import { generateSchedule, getScheduleForDay } from '../services/scheduler';
+import { generateSchedule, getScheduleForDay, clearSchedule } from '../services/scheduler';
 import { assignShowToDay } from '../services/dayAssignment';
 
 describe('E2E: Schedule Flow', () => {
@@ -63,6 +65,41 @@ describe('E2E: Schedule Flow', () => {
     const updated = await getScheduleForDay(today);
     const ep = updated!.episodes.find((e) => e.id === firstEpisode.id);
     expect(ep!.status).toBe('watched');
+  });
+
+  it('schedule header reflects actually-scheduled minutes, not theoretical demand', async () => {
+    // Assigned demand (109m) exceeds budget (90m); scheduler fits 22+43=65m
+    // and pushes the 44m show to "Doesn't Fit". The header should read
+    // 65/90, not 109/90, because the user can plainly see only 65m of
+    // episodes listed for the day.
+    await updateSettings({ weekdayMinutes: 90, weekendMinutes: 90 });
+
+    async function seed(tmdbId: number, title: string, runtime: number, dayOfWeek: number) {
+      const show = await prisma.show.create({
+        data: { tmdbId, title, genres: '[]', totalSeasons: 1, totalEpisodes: 50, episodeRuntime: runtime, status: 'Ended' },
+      });
+      const entry = await prisma.watchlistEntry.create({ data: { showId: show.id, status: 'watching' } });
+      await prisma.showDayAssignment.create({ data: { watchlistEntryId: entry.id, dayOfWeek } });
+      return { show, entry };
+    }
+
+    // Pick a future date so it falls inside the 7-day window /schedule renders.
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    const targetDayOfWeek = (start.getDay() + 1) % 7; // tomorrow's day-of-week
+    await seed(501, 'Twenty-Two', 22, targetDayOfWeek);
+    await seed(502, 'Forty-Three', 43, targetDayOfWeek);
+    await seed(503, 'Forty-Four', 44, targetDayOfWeek);
+
+    await clearSchedule();
+    await generateSchedule(start, 7);
+
+    const page = await request(app).get('/schedule');
+    expect(page.status).toBe(200);
+
+    // The 22m and 43m episodes were scheduled (65 total); the 44m wasn't.
+    expect(page.text).toContain('65/90 min');
+    expect(page.text).not.toContain('109/90 min');
   });
 
   it('finishes show without auto-promoting (user picks manually)', async () => {

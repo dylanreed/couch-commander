@@ -118,6 +118,30 @@ describe('rotation flow', () => {
     expect(queueSection2).toContain('Plain Queued');
   });
 
+  it('counts rotation-picked episode runtime in the /schedule day header', async () => {
+    // A rotation member that produces an episode on a given day should
+    // contribute to that day's used-minutes total, exactly like a direct
+    // day-assignment episode would.
+    await prisma.settings.update({ where: { id: 1 }, data: { weekdayMinutes: 90, weekendMinutes: 90 } });
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const targetDayOfWeek = today.getDay();
+
+    const a = await seedShow(601, 'Rotation Show', 30);
+    const r = await request(app).post('/api/rotations').send({ name: 'Daily Rotation' });
+    const groupId = r.body.id;
+    await request(app).post(`/api/rotations/${groupId}/members`).send({ watchlistEntryId: a.entry.id });
+    await request(app).put(`/api/rotations/${groupId}/days`).send({ daysOfWeek: [targetDayOfWeek] });
+
+    await generateSchedule(today, 1);
+
+    const page = await request(app).get('/schedule');
+    expect(page.status).toBe(200);
+    // 30m scheduled out of 90m budget — the rotation pick must be counted.
+    expect(page.text).toContain('30/90 min');
+  });
+
   it('is idempotent across regenerations', async () => {
     const a = await seedShow(801, 'A');
     const b = await seedShow(802, 'B');

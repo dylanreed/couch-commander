@@ -38,12 +38,23 @@ router.get('/', async (_req, res) => {
 
       const schedule = await getScheduleForDay(date);
       const capacity = await getDayCapacity(date.getDay());
+      // capacity.usedMinutes from getDayCapacity reflects theoretical demand
+      // (sum of all ShowDayAssignments for this day-of-week). For the per-date
+      // header we want what's actually scheduled — the runtime sum of episodes
+      // the scheduler placed on this specific date. The "Doesn't Fit" section
+      // below surfaces demand-vs-capacity overflow separately.
+      const episodes = schedule?.episodes || [];
+      const usedMinutes = episodes.reduce((sum, ep) => sum + ep.runtime, 0);
       days.push({
         date,
         isToday: i === 0,
         plannedMinutes: schedule?.plannedMinutes || 0,
-        episodes: schedule?.episodes || [],
-        capacity,
+        episodes,
+        capacity: {
+          ...capacity,
+          usedMinutes,
+          availableMinutes: capacity.totalMinutes - usedMinutes,
+        },
       });
     }
 
