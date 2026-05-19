@@ -14,6 +14,7 @@ import watchlistApiRoutes from './routes/api/watchlist';
 import checkinApiRoutes from './routes/api/checkin';
 import systemApiRoutes from './routes/api/system';
 import scheduleApiRoutes from './routes/api/schedule';
+import rotationsApiRoutes from './routes/api/rotations';
 import { apiKeyAuth } from './middleware/apiKey';
 
 dotenv.config();
@@ -50,6 +51,7 @@ app.use('/api/shows', showsApiRoutes);
 app.use('/api/watchlist', watchlistApiRoutes);
 app.use('/api/checkin', checkinApiRoutes);
 app.use('/api/schedule', scheduleApiRoutes);
+app.use('/api/rotations', rotationsApiRoutes);
 app.use('/api/v1/system', systemApiRoutes);
 app.use('/api/v1', systemApiRoutes);  // Mounts /health at /api/v1/health
 
