@@ -12,6 +12,7 @@ import scheduleRoutes from './routes/schedule';
 import showsApiRoutes from './routes/api/shows';
 import watchlistApiRoutes from './routes/api/watchlist';
 import checkinApiRoutes from './routes/api/checkin';
+import settingsApiRoutes from './routes/api/settings';
 import systemApiRoutes from './routes/api/system';
 import scheduleApiRoutes from './routes/api/schedule';
 import rotationsApiRoutes from './routes/api/rotations';
@@ -52,6 +53,7 @@ app.use('/api/shows', showsApiRoutes);
 app.use('/api/watchlist', watchlistApiRoutes);
 app.use('/api/checkin', checkinApiRoutes);
 app.use('/api/schedule', scheduleApiRoutes);
+app.use('/api/settings', settingsApiRoutes);
 app.use('/api/rotations', rotationsApiRoutes);
 app.use('/api/v1/system', systemApiRoutes);
 app.use('/api/v1', systemApiRoutes);  // Mounts /health at /api/v1/health
