@@ -46,6 +46,75 @@ router.get('/availability', async (req, res) => {
   }
 });
 
+function parseEntryIds(body: any): number[] | null {
+  if (!body || !Array.isArray(body.entryIds)) return null;
+  const ids = body.entryIds.filter((x: unknown) => Number.isInteger(x)) as number[];
+  return ids.length === 0 ? null : ids;
+}
+
+router.post('/bulk/promote', async (req, res) => {
+  const ids = parseEntryIds(req.body);
+  if (!ids) return res.status(400).json({ error: 'entryIds must be a non-empty array of integers' });
+  const result = await prisma.watchlistEntry.updateMany({
+    where: { id: { in: ids } },
+    data: { status: 'watching' },
+  });
+  // Promote = unpinned. We do not create ShowDayAssignment rows.
+  await clearSchedule();
+  res.json({ promoted: ids, count: result.count });
+});
+
+router.post('/bulk/demote', async (req, res) => {
+  const ids = parseEntryIds(req.body);
+  if (!ids) return res.status(400).json({ error: 'entryIds must be a non-empty array of integers' });
+  await prisma.$transaction([
+    prisma.showDayAssignment.deleteMany({ where: { watchlistEntryId: { in: ids } } }),
+    prisma.watchlistEntry.updateMany({
+      where: { id: { in: ids } },
+      data: { status: 'queued' },
+    }),
+  ]);
+  await clearSchedule();
+  res.json({ demoted: ids });
+});
+
+router.post('/bulk/remove', async (req, res) => {
+  const ids = parseEntryIds(req.body);
+  if (!ids) return res.status(400).json({ error: 'entryIds must be a non-empty array of integers' });
+  await prisma.watchlistEntry.deleteMany({ where: { id: { in: ids } } });
+  await clearSchedule();
+  res.json({ removed: ids });
+});
+
+router.post('/bulk/rotation/:rotationId', async (req, res) => {
+  const ids = parseEntryIds(req.body);
+  if (!ids) return res.status(400).json({ error: 'entryIds must be a non-empty array of integers' });
+  const rotationId = parseInt(req.params.rotationId, 10);
+  if (Number.isNaN(rotationId)) return res.status(400).json({ error: 'bad rotationId' });
+
+  const existing = await prisma.rotationMember.findMany({
+    where: { rotationGroupId: rotationId, watchlistEntryId: { in: ids } },
+    select: { watchlistEntryId: true },
+  });
+  const existingIds = new Set(existing.map((m) => m.watchlistEntryId));
+  const toAdd = ids.filter((id) => !existingIds.has(id));
+  const skipped = ids.filter((id) => existingIds.has(id));
+
+  if (toAdd.length > 0) {
+    const baseOrder = await prisma.rotationMember.count({ where: { rotationGroupId: rotationId } });
+    await prisma.$transaction(
+      toAdd.map((entryId, i) =>
+        prisma.rotationMember.create({
+          data: { rotationGroupId: rotationId, watchlistEntryId: entryId, order: baseOrder + i },
+        })
+      )
+    );
+    await clearSchedule();
+  }
+
+  res.json({ added: toAdd, skipped });
+});
+
 router.delete('/:id', async (req, res) => {
   const parsedId = parseId(req.params.id);
   if (parsedId === null) {

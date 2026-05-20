@@ -241,3 +241,90 @@ describe('Watchlist API', () => {
     });
   });
 });
+
+describe('Bulk endpoints', () => {
+  beforeEach(async () => {
+    // Clean the tables this suite touches
+    await prisma.rotationMember.deleteMany();
+    await prisma.rotationGroup.deleteMany();
+    await prisma.showDayAssignment.deleteMany();
+    await prisma.watchlistEntry.deleteMany();
+    await prisma.show.deleteMany();
+  });
+
+  async function seedShow(tmdbId: number, title: string, status = 'queued') {
+    const show = await prisma.show.create({
+      data: { tmdbId, title, genres: '[]', totalSeasons: 1, totalEpisodes: 10, episodeRuntime: 30, status: 'Ended' },
+    });
+    return prisma.watchlistEntry.create({ data: { showId: show.id, status } });
+  }
+
+  it('POST /api/watchlist/bulk/promote flips multiple queued entries to watching, no day assignments created', async () => {
+    const a = await seedShow(801, 'BP A');
+    const b = await seedShow(802, 'BP B');
+    const r = await request(app).post('/api/watchlist/bulk/promote').send({ entryIds: [a.id, b.id] });
+    expect(r.status).toBe(200);
+    expect(r.body.promoted.sort()).toEqual([a.id, b.id].sort());
+
+    const updated = await prisma.watchlistEntry.findMany({
+      where: { id: { in: [a.id, b.id] } },
+      include: { dayAssignments: true },
+    });
+    for (const e of updated) {
+      expect(e.status).toBe('watching');
+      expect(e.dayAssignments).toEqual([]);
+    }
+  });
+
+  it('POST /api/watchlist/bulk/demote moves to queued and clears day assignments', async () => {
+    const a = await seedShow(811, 'BD A', 'watching');
+    await prisma.showDayAssignment.create({ data: { watchlistEntryId: a.id, dayOfWeek: 1 } });
+
+    const r = await request(app).post('/api/watchlist/bulk/demote').send({ entryIds: [a.id] });
+    expect(r.status).toBe(200);
+    expect(r.body.demoted).toEqual([a.id]);
+
+    const updated = await prisma.watchlistEntry.findUnique({
+      where: { id: a.id },
+      include: { dayAssignments: true },
+    });
+    expect(updated!.status).toBe('queued');
+    expect(updated!.dayAssignments).toEqual([]);
+  });
+
+  it('POST /api/watchlist/bulk/remove deletes multiple entries', async () => {
+    const a = await seedShow(821, 'BR A');
+    const b = await seedShow(822, 'BR B');
+    const r = await request(app).post('/api/watchlist/bulk/remove').send({ entryIds: [a.id, b.id] });
+    expect(r.status).toBe(200);
+    expect(r.body.removed.sort()).toEqual([a.id, b.id].sort());
+
+    const remaining = await prisma.watchlistEntry.findMany({ where: { id: { in: [a.id, b.id] } } });
+    expect(remaining).toEqual([]);
+  });
+
+  it('POST /api/watchlist/bulk/rotation/:rotationId adds members, skipping duplicates', async () => {
+    const a = await seedShow(831, 'BRot A');
+    const b = await seedShow(832, 'BRot B');
+    const group = await prisma.rotationGroup.create({ data: { name: 'BulkTarget' } });
+    // pre-add b so it should be skipped as a duplicate
+    await prisma.rotationMember.create({ data: { rotationGroupId: group.id, watchlistEntryId: b.id, order: 0 } });
+
+    const r = await request(app)
+      .post(`/api/watchlist/bulk/rotation/${group.id}`)
+      .send({ entryIds: [a.id, b.id] });
+    expect(r.status).toBe(200);
+    expect(r.body.added).toEqual([a.id]);
+    expect(r.body.skipped).toEqual([b.id]);
+
+    const members = await prisma.rotationMember.findMany({ where: { rotationGroupId: group.id } });
+    expect(members.length).toBe(2);
+  });
+
+  it('returns 400 for missing or empty entryIds', async () => {
+    const r1 = await request(app).post('/api/watchlist/bulk/promote').send({});
+    expect(r1.status).toBe(400);
+    const r2 = await request(app).post('/api/watchlist/bulk/promote').send({ entryIds: [] });
+    expect(r2.status).toBe(400);
+  });
+});
