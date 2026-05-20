@@ -676,6 +676,26 @@ describe('Pass 2: unpinned-show placement via genre affinity', () => {
     expect(found).toBe(true);
   });
 
+  it('places at most one episode of an unpinned show across the whole week', async () => {
+    // Sunday (dayOfWeek 0) themed Family with a big budget; a Family show with
+    // many episodes must still only appear ONCE in the 7-day window.
+    await prisma.settings.update({ where: { id: 1 }, data: { weekendMinutes: 240, weekdayMinutes: 240 } });
+    await prisma.dayGenrePreference.create({ data: { dayOfWeek: 0, genre: 'Family' } });
+    await seedShow(910, 'Family Marathon', ['Family'], 22);
+
+    const start = new Date('2026-05-17T00:00:00.000Z'); // Sunday
+    await generateSchedule(start, 7);
+
+    let count = 0;
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(start);
+      d.setDate(d.getDate() + i);
+      const day = await getScheduleForDay(d);
+      count += (day?.episodes.filter((e) => e.show.title === 'Family Marathon').length) ?? 0;
+    }
+    expect(count).toBe(1);
+  });
+
   it('pinned shows still go on their pinned day regardless of genre preferences', async () => {
     // Mark Tuesday=Comedy. Then pin a Comedy show to Wednesday. It must stay on Wed.
     await prisma.dayGenrePreference.create({ data: { dayOfWeek: 2, genre: 'Comedy' } });

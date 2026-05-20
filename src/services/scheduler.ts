@@ -163,7 +163,9 @@ async function doGenerateSchedule(startDate: Date, days: number): Promise<void> 
   // Pass 2: place unpinned watching shows onto the best-scoring day within the
   // requested window. Unpinned means no ShowDayAssignment rows AND no rotation
   // membership — rotation members are scheduled by rotation logic in Pass 1.
-  // Soft preference: shows still get placed even when no day's theme matches.
+  // Each unpinned show gets AT MOST ONE episode across the whole window — one
+  // per show per week — to maximise variety per night. Soft preference: shows
+  // still get placed even when no day's theme matches.
   const unpinnedEntries = await prisma.watchlistEntry.findMany({
     where: {
       status: 'watching',
@@ -174,7 +176,7 @@ async function doGenerateSchedule(startDate: Date, days: number): Promise<void> 
   });
 
   if (unpinnedEntries.length > 0) {
-    // Snapshot per-day remaining capacity + per-show position.
+    // Snapshot per-day remaining capacity + next episode order.
     type DayState = {
       date: Date;
       dayOfWeek: number;
@@ -206,103 +208,43 @@ async function doGenerateSchedule(startDate: Date, days: number): Promise<void> 
       });
     }
 
-    // Position pointer (season/episode) per show — initialize from the
-    // watchlist entry's current progress.
-    const unpinnedPositions = new Map<number, { season: number; episode: number }>();
-    for (const e of unpinnedEntries) {
-      unpinnedPositions.set(e.id, { season: e.currentSeason, episode: e.currentEpisode });
-    }
+    // Place exactly one episode per unpinned show. Each show is the show's
+    // current season/episode (read directly off the watchlist entry).
+    for (const entry of unpinnedEntries) {
+      const season = entry.currentSeason;
+      const episode = entry.currentEpisode;
+      if (episode > entry.show.totalEpisodes) continue;
+      const runtime = entry.show.episodeRuntime;
+      const showGenres = (() => {
+        try { return JSON.parse(entry.show.genres) as string[]; }
+        catch { return []; }
+      })();
 
-    // Track which unpinned shows received at least one placement in loop 1.
-    // The safety-net loop below only rescues shows that got ZERO placements —
-    // it never overflows an already-placed show onto a mismatched themed day.
-    const placedShowIds = new Set<number>();
-
-    // Round-robin: each pass tries to schedule one episode per unpinned show
-    // on its highest-scoring day with capacity. Stop when a full pass adds nothing.
-    let progress = true;
-    while (progress) {
-      progress = false;
-      for (const entry of unpinnedEntries) {
-        const pos = unpinnedPositions.get(entry.id)!;
-        if (pos.episode > entry.show.totalEpisodes) continue;
-        const runtime = entry.show.episodeRuntime;
-        const showGenres = (() => {
-          try { return JSON.parse(entry.show.genres) as string[]; }
-          catch { return []; }
-        })();
-
-        // Score each day that can fit one more episode. Themed days reject
-        // shows whose genres don't overlap — those days are reserved for their
-        // matching shows. Days without a theme remain open to anything.
-        let bestIdx = -1;
-        let bestScore = Number.NEGATIVE_INFINITY;
-        for (let i = 0; i < dayStates.length; i++) {
-          const s = dayStates[i];
-          if (s.remainingMinutes < runtime) continue;
-          const dayGenres = await getDayGenres(s.dayOfWeek);
-          if (dayGenres.length > 0 && !showGenres.some((g) => dayGenres.includes(g))) {
-            continue;
-          }
-          const score = await scoreDayForShow(s.dayOfWeek, showGenres, s.remainingMinutes);
-          if (score > bestScore) {
-            bestScore = score;
-            bestIdx = i;
-          }
+      // Primary scan: score each day that can fit the episode. Themed days
+      // reject shows whose genres don't overlap — those days are reserved for
+      // their matching shows. Days without a theme remain open to anything.
+      let bestIdx = -1;
+      let bestScore = Number.NEGATIVE_INFINITY;
+      for (let i = 0; i < dayStates.length; i++) {
+        const s = dayStates[i];
+        if (s.remainingMinutes < runtime) continue;
+        const dayGenres = await getDayGenres(s.dayOfWeek);
+        if (dayGenres.length > 0 && !showGenres.some((g) => dayGenres.includes(g))) {
+          continue;
         }
-        if (bestIdx < 0) continue;
-        const target = dayStates[bestIdx];
-
-        // Availability check for returning series (mirrors fillDaySequential)
-        if (entry.show.status === 'Returning Series') {
-          const availability = await isEpisodeAvailable(entry.show.tmdbId, pos.season, pos.episode);
-          if (!availability.available) continue;
+        const score = await scoreDayForShow(s.dayOfWeek, showGenres, s.remainingMinutes);
+        if (score > bestScore) {
+          bestScore = score;
+          bestIdx = i;
         }
-
-        await prisma.scheduledEpisode.create({
-          data: {
-            scheduleDayId: target.scheduleDayId,
-            showId: entry.show.id,
-            season: pos.season,
-            episode: pos.episode,
-            runtime,
-            order: target.nextOrder,
-            status: 'pending',
-          },
-        });
-
-        target.remainingMinutes -= runtime;
-        target.nextOrder += 1;
-        pos.episode += 1;
-        placedShowIds.add(entry.id);
-        progress = true;
       }
-    }
 
-    // Safety net: any unpinned show that got ZERO placements above matched no
-    // themed day and was stranded. This loop picks up exactly where the first
-    // left off (positions + capacity already mutated) and places those shows
-    // on any day with capacity, ignoring the themed-exclusion filter. Capacity
-    // and the returning-series availability check still apply. scoreDayForShow
-    // still ranks days, so a stranded show prefers a matching themed day if one
-    // happens to have room (the genre bonus survives; only the hard exclusion
-    // is dropped). Shows already placed in loop 1 are excluded, so a comedy
-    // show that filled its comedy night never bleeds onto a drama night.
-    let fallbackProgress = true;
-    while (fallbackProgress) {
-      fallbackProgress = false;
-      for (const entry of unpinnedEntries) {
-        if (placedShowIds.has(entry.id)) continue;
-        const pos = unpinnedPositions.get(entry.id)!;
-        if (pos.episode > entry.show.totalEpisodes) continue;
-        const runtime = entry.show.episodeRuntime;
-        const showGenres = (() => {
-          try { return JSON.parse(entry.show.genres) as string[]; }
-          catch { return []; }
-        })();
-
-        let bestIdx = -1;
-        let bestScore = Number.NEGATIVE_INFINITY;
+      // Safety net: if the primary scan found no eligible day (the show matched
+      // no themed day with room), scan again over any day with capacity,
+      // dropping the themed-exclusion filter. scoreDayForShow still ranks days,
+      // so the genre bonus survives — only the hard exclusion is dropped.
+      if (bestIdx < 0) {
+        bestScore = Number.NEGATIVE_INFINITY;
         for (let i = 0; i < dayStates.length; i++) {
           const s = dayStates[i];
           if (s.remainingMinutes < runtime) continue;
@@ -312,31 +254,33 @@ async function doGenerateSchedule(startDate: Date, days: number): Promise<void> 
             bestIdx = i;
           }
         }
-        if (bestIdx < 0) continue;
-        const target = dayStates[bestIdx];
-
-        if (entry.show.status === 'Returning Series') {
-          const availability = await isEpisodeAvailable(entry.show.tmdbId, pos.season, pos.episode);
-          if (!availability.available) continue;
-        }
-
-        await prisma.scheduledEpisode.create({
-          data: {
-            scheduleDayId: target.scheduleDayId,
-            showId: entry.show.id,
-            season: pos.season,
-            episode: pos.episode,
-            runtime,
-            order: target.nextOrder,
-            status: 'pending',
-          },
-        });
-
-        target.remainingMinutes -= runtime;
-        target.nextOrder += 1;
-        pos.episode += 1;
-        fallbackProgress = true;
       }
+
+      // No day has capacity — the show gets none this week. It surfaces in the
+      // "Doesn't Fit" overflow on the schedule page.
+      if (bestIdx < 0) continue;
+      const target = dayStates[bestIdx];
+
+      // Availability check for returning series (mirrors fillDaySequential)
+      if (entry.show.status === 'Returning Series') {
+        const availability = await isEpisodeAvailable(entry.show.tmdbId, season, episode);
+        if (!availability.available) continue;
+      }
+
+      await prisma.scheduledEpisode.create({
+        data: {
+          scheduleDayId: target.scheduleDayId,
+          showId: entry.show.id,
+          season,
+          episode,
+          runtime,
+          order: target.nextOrder,
+          status: 'pending',
+        },
+      });
+
+      target.remainingMinutes -= runtime;
+      target.nextOrder += 1;
     }
   }
 
