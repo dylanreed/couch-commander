@@ -1,0 +1,13 @@
+<%# ABOUTME: Renders a row of small genre chips for a show. %>
+<%# ABOUTME: Caller passes `show` — uses show.genres (JSON-encoded array). %>
+<%
+  var __genres = [];
+  try { __genres = JSON.parse(show.genres) || []; } catch (e) { __genres = []; }
+%>
+<% if (__genres.length > 0) { %>
+  <span class="inline-flex flex-wrap gap-1 align-middle">
+    <% __genres.forEach(function (g) { %>
+      <span class="genre-chip"><%= g %></span>
+    <% }); %>
+  </span>
+<% } %>

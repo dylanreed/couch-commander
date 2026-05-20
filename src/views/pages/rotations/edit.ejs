@@ -76,6 +76,7 @@
                 <span class="text-xs text-lounge-muted">&middot; finished</span>
                 <button type="button" class="ml-2 text-xs text-lounge-gold hover:text-lounge-gold-dim transition-colors" onclick="revive(<%= group.id %>, <%= m.id %>)">Revive</button>
               <% } %>
+              <%- include('../../partials/genre-chips', { show: m.watchlistEntry.show }) %>
             </span>
             <div class="flex items-center gap-1 flex-shrink-0">
               <button type="button" class="px-2 py-1 text-xs text-lounge-muted hover:text-lounge-cream bg-lounge-card hover:bg-lounge-border rounded transition-colors" onclick="moveUp(this)">↑</button>

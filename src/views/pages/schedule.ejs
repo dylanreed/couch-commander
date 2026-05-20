@@ -74,6 +74,7 @@
           <% } %>
           <span class="flex-1 text-lounge-cream">
             <% if (ep.rotationGroup) { %><span class="rotation-chip">&#8635; <%= ep.rotationGroup.name %></span><% } %><%= ep.show.title %>
+            <%- include('../partials/genre-chips', { show: ep.show }) %>
           </span>
           <span class="text-lounge-muted">S<%= ep.season %>E<%= ep.episode %></span>
           <span class="text-xs px-2 py-0.5 rounded-full bg-lounge-surface text-lounge-muted"><%= ep.runtime %>m</span>
