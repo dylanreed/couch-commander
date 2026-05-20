@@ -10,3 +10,4 @@ prisma/test.db
 .DS_Store
 
 .beads/
+AGENTS.md
