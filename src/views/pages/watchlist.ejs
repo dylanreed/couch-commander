@@ -106,11 +106,29 @@ async function updateEpisode(entryId) {
   %>
 
   <!-- Currently Watching -->
-  <section class="space-y-5">
+  <section class="space-y-5" id="watching-section">
     <div class="flex items-center gap-3">
+      <input type="checkbox" id="watching-select-all" class="accent-lounge-gold w-4 h-4">
       <div class="w-3 h-3 rounded-full bg-lounge-watching"></div>
       <h2 class="font-display text-2xl font-semibold text-lounge-cream">Currently Watching</h2>
       <span class="text-lounge-muted text-sm">(<%= watching.length %> shows)</span>
+    </div>
+
+    <div id="watching-action-bar" class="hidden bg-lounge-surface border border-lounge-border rounded-2xl px-4 py-2 flex items-center gap-3 sticky top-20 z-40">
+      <span class="text-sm text-lounge-cream"><span id="watching-count">0</span> selected</span>
+      <button type="button" class="text-xs px-3 py-1.5 rounded-lg bg-lounge-card text-lounge-queue hover:bg-lounge-queue hover:text-lounge-bg transition-colors" onclick="bulkAction('watching', 'demote')">Demote</button>
+      <button type="button" class="text-xs px-3 py-1.5 rounded-lg bg-lounge-card text-red-400 hover:bg-red-400 hover:text-lounge-bg transition-colors" onclick="bulkAction('watching', 'remove')">Remove</button>
+      <div class="relative">
+        <button type="button" class="text-xs px-3 py-1.5 rounded-lg bg-lounge-card text-lounge-cream hover:bg-lounge-border transition-colors" onclick="toggleRotationMenu('watching')">Add to rotation ▾</button>
+        <div id="watching-rotation-menu" class="hidden absolute right-0 mt-1 bg-lounge-surface border border-lounge-border rounded-xl py-1 min-w-[180px] z-50">
+          <% rotations.forEach(function(r) { %>
+            <button type="button" class="block w-full text-left px-3 py-1.5 text-xs text-lounge-cream hover:bg-lounge-card" onclick="bulkAction('watching', 'rotation', <%= r.id %>)"><%= r.name %><% if (!r.active) { %> <span class="text-lounge-muted">(paused)</span><% } %></button>
+          <% }); %>
+          <% if (rotations.length === 0) { %>
+            <div class="px-3 py-2 text-xs text-lounge-muted italic">No rotations yet</div>
+          <% } %>
+        </div>
+      </div>
     </div>
 
     <% if (watching.length === 0) { %>
@@ -121,7 +139,8 @@ async function updateEpisode(entryId) {
     <div class="grid gap-4">
       <% watching.forEach((entry, index) => { %>
       <div class="bg-lounge-surface rounded-2xl p-5 card-hover status-watching" style="animation-delay: <%= index * 50 %>ms">
-        <div class="flex gap-5">
+        <div class="flex gap-5 items-start">
+          <input type="checkbox" class="watching-select accent-lounge-gold w-4 h-4 mt-1" data-id="<%= entry.id %>">
           <!-- Poster -->
           <% if (entry.show.posterPath) { %>
           <img src="https://image.tmdb.org/t/p/w154<%= entry.show.posterPath %>"
@@ -248,11 +267,29 @@ async function updateEpisode(entryId) {
   </section>
 
   <!-- Queue -->
-  <section class="space-y-5">
+  <section class="space-y-5" id="queue-section">
     <div class="flex items-center gap-3">
+      <input type="checkbox" id="queue-select-all" class="accent-lounge-gold w-4 h-4">
       <div class="w-3 h-3 rounded-full bg-lounge-queue"></div>
       <h2 class="font-display text-2xl font-semibold text-lounge-cream">Queue</h2>
       <span class="text-lounge-muted text-sm">(<%= queued.length %> shows)</span>
+    </div>
+
+    <div id="queue-action-bar" class="hidden bg-lounge-surface border border-lounge-border rounded-2xl px-4 py-2 flex items-center gap-3 sticky top-20 z-40">
+      <span class="text-sm text-lounge-cream"><span id="queue-count">0</span> selected</span>
+      <button type="button" class="text-xs px-3 py-1.5 rounded-lg bg-lounge-card text-lounge-watching hover:bg-lounge-watching hover:text-lounge-bg transition-colors" onclick="bulkAction('queue', 'promote')">Promote</button>
+      <button type="button" class="text-xs px-3 py-1.5 rounded-lg bg-lounge-card text-red-400 hover:bg-red-400 hover:text-lounge-bg transition-colors" onclick="bulkAction('queue', 'remove')">Remove</button>
+      <div class="relative">
+        <button type="button" class="text-xs px-3 py-1.5 rounded-lg bg-lounge-card text-lounge-cream hover:bg-lounge-border transition-colors" onclick="toggleRotationMenu('queue')">Add to rotation ▾</button>
+        <div id="queue-rotation-menu" class="hidden absolute right-0 mt-1 bg-lounge-surface border border-lounge-border rounded-xl py-1 min-w-[180px] z-50">
+          <% rotations.forEach(function(r) { %>
+            <button type="button" class="block w-full text-left px-3 py-1.5 text-xs text-lounge-cream hover:bg-lounge-card" onclick="bulkAction('queue', 'rotation', <%= r.id %>)"><%= r.name %><% if (!r.active) { %> <span class="text-lounge-muted">(paused)</span><% } %></button>
+          <% }); %>
+          <% if (rotations.length === 0) { %>
+            <div class="px-3 py-2 text-xs text-lounge-muted italic">No rotations yet</div>
+          <% } %>
+        </div>
+      </div>
     </div>
 
     <% if (queued.length === 0) { %>
@@ -263,7 +300,8 @@ async function updateEpisode(entryId) {
     <div class="grid gap-4">
       <% queued.forEach((entry, index) => { %>
       <div class="bg-lounge-surface rounded-2xl p-5 card-hover status-queue" style="animation-delay: <%= index * 50 %>ms">
-        <div class="flex gap-5">
+        <div class="flex gap-5 items-start">
+          <input type="checkbox" class="queue-select accent-lounge-gold w-4 h-4 mt-1" data-id="<%= entry.id %>">
           <!-- Queue Number -->
           <div class="flex-shrink-0 w-10 h-10 rounded-xl bg-lounge-card flex items-center justify-center">
             <span class="font-display text-lg text-lounge-queue"><%= index + 1 %></span>
@@ -357,3 +395,79 @@ async function updateEpisode(entryId) {
     <% } %>
   </section>
 </div>
+
+<script>
+  function selectedIds(section) {
+    return Array.from(document.querySelectorAll('.' + section + '-select:checked'))
+      .map(function (cb) { return Number(cb.dataset.id); });
+  }
+
+  function refreshBar(section) {
+    var ids = selectedIds(section);
+    var bar = document.getElementById(section + '-action-bar');
+    var count = document.getElementById(section + '-count');
+    if (ids.length > 0) {
+      bar.classList.remove('hidden');
+      count.textContent = String(ids.length);
+    } else {
+      bar.classList.add('hidden');
+    }
+  }
+
+  function toggleRotationMenu(section) {
+    var menu = document.getElementById(section + '-rotation-menu');
+    menu.classList.toggle('hidden');
+  }
+
+  document.addEventListener('click', function (e) {
+    ['watching', 'queue'].forEach(function (s) {
+      var menu = document.getElementById(s + '-rotation-menu');
+      if (!menu) return;
+      var openerClicked = e.target.closest('[onclick*="toggleRotationMenu(\'' + s + '\')"]');
+      var insideMenu = e.target.closest('#' + s + '-rotation-menu');
+      if (!openerClicked && !insideMenu) menu.classList.add('hidden');
+    });
+  });
+
+  ['watching', 'queue'].forEach(function (section) {
+    document.querySelectorAll('.' + section + '-select').forEach(function (cb) {
+      cb.addEventListener('change', function () { refreshBar(section); });
+    });
+    var all = document.getElementById(section + '-select-all');
+    if (all) {
+      all.addEventListener('change', function () {
+        document.querySelectorAll('.' + section + '-select').forEach(function (cb) {
+          cb.checked = all.checked;
+        });
+        refreshBar(section);
+      });
+    }
+  });
+
+  async function bulkAction(section, action, rotationId) {
+    var ids = selectedIds(section);
+    if (ids.length === 0) return;
+
+    if (action === 'remove' && !confirm('Remove ' + ids.length + ' show(s)?')) return;
+    if (action === 'demote' && !confirm('Demote ' + ids.length + ' show(s) back to queue?')) return;
+
+    var url;
+    if (action === 'rotation') {
+      url = '/api/watchlist/bulk/rotation/' + rotationId;
+    } else {
+      url = '/api/watchlist/bulk/' + action;
+    }
+    var r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ entryIds: ids }),
+    });
+    if (r.ok) {
+      location.reload();
+    } else {
+      var data = {};
+      try { data = await r.json(); } catch (e) { /* ignore */ }
+      alert('Failed: ' + (data.error || r.status));
+    }
+  }
+</script>

@@ -46,10 +46,16 @@ router.get('/', async (_req, res) => {
       orderBy: { priority: 'asc' },
     });
 
+    const rotations = await prisma.rotationGroup.findMany({
+      orderBy: { id: 'asc' },
+      select: { id: true, name: true, active: true },
+    });
+
     renderWithLayout(res, 'watchlist', {
       title: 'Watchlist',
       watching,
       queued,
+      rotations,
     });
   } catch (error) {
     console.error('Watchlist page error:', error);
