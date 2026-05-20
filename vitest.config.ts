@@ -14,5 +14,9 @@ export default defineConfig({
     sequence: {
       concurrent: false,
     },
+    // Restore vi.stubEnv() values between tests. Without this, an API_KEY stub
+    // in one file leaks into later files (shared process under fileParallelism:
+    // false), intermittently flipping auth-gated tests from 400 to 401.
+    unstubEnvs: true,
   },
 });
