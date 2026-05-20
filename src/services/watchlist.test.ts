@@ -141,16 +141,14 @@ describe('Watchlist Service', () => {
   });
 
   describe('promoteFromQueue', () => {
-    it('promotes show from queue to watching and assigns day', async () => {
-      await updateSettings({ weekdayMinutes: 120 });
-
+    it('promotes show from queue to watching without auto-assigning a day', async () => {
       const entry = await addToWatchlist(testShow.id);
       expect(entry.status).toBe('queued');
 
       const promoted = await promoteFromQueue(entry.id);
 
       expect(promoted.status).toBe('watching');
-      expect(promoted.dayAssignments.length).toBeGreaterThan(0);
+      expect(promoted.dayAssignments).toEqual([]);
     });
 
     it('throws error if entry is not queued', async () => {

@@ -3,7 +3,7 @@
 
 import { prisma } from '../lib/db';
 import type { WatchlistEntry, Show, ShowDayAssignment } from '@prisma/client';
-import { assignShowToDay, findBestDayForShow, removeAllAssignments } from './dayAssignment';
+import { removeAllAssignments } from './dayAssignment';
 import { isEpisodeAvailable } from './tmdb';
 
 interface WatchlistOptions {
@@ -135,28 +135,12 @@ export async function promoteFromQueue(
     }
   }
 
-  const genres = JSON.parse(entry.show.genres) as string[];
-  const bestDay = await findBestDayForShow(entry.show.episodeRuntime, genres);
-
-  // Update status to watching
-  await prisma.watchlistEntry.update({
+  // Flip status to watching — day assignment is handled separately by the scheduler
+  return prisma.watchlistEntry.update({
     where: { id: entryId },
     data: { status: 'watching' },
-  });
-
-  // Assign to best day
-  await assignShowToDay(entryId, bestDay);
-
-  // Return with relations
-  const result = await prisma.watchlistEntry.findUnique({
-    where: { id: entryId },
     include: { show: true, dayAssignments: true },
   });
-
-  // This should never happen since we just updated the entry
-  if (!result) throw new Error('Entry not found after update');
-
-  return result;
 }
 
 export async function demoteToQueue(entryId: number): Promise<WatchlistEntryWithShow> {

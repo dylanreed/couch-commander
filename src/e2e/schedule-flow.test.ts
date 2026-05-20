@@ -30,20 +30,15 @@ describe('E2E: Schedule Flow', () => {
     // 2. Configure settings
     await updateSettings({ weekdayMinutes: 120 });
 
-    // 3. Promote to watching (auto-assigns to best day)
+    // 3. Promote to watching — does NOT auto-assign a day
     const promoted = await promoteFromQueue(entry.id);
     expect(promoted.status).toBe('watching');
-    expect(promoted.dayAssignments.length).toBeGreaterThan(0);
+    expect(promoted.dayAssignments).toEqual([]);
 
-    // 4. Get the assigned day and generate schedule for that day
-    const assignedDay = promoted.dayAssignments[0].dayOfWeek;
-
-    // Create a date that matches that day of week
+    // 4. Explicitly pin the show to today so the scheduler has something to work with
     const today = new Date();
-    while (today.getDay() !== assignedDay) {
-      today.setDate(today.getDate() + 1);
-    }
     today.setHours(0, 0, 0, 0);
+    await assignShowToDay(promoted.id, today.getDay());
 
     await generateSchedule(today, 1);
 
