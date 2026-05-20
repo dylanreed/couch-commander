@@ -653,6 +653,29 @@ describe('Pass 2: unpinned-show placement via genre affinity', () => {
     expect(found).toBe(true);
   });
 
+  it('schedules an unpinned show even when every day is themed and none match (safety net)', async () => {
+    // Theme ALL 7 days with genres the show does NOT have.
+    await prisma.dayGenrePreference.createMany({
+      data: [0, 1, 2, 3, 4, 5, 6].map((d) => ({ dayOfWeek: d, genre: 'Drama' })),
+    });
+    await seedShow(905, 'Lonely Comedy', ['Comedy']);
+
+    const start = new Date('2026-05-17T00:00:00.000Z');
+    await generateSchedule(start, 7);
+
+    let found = false;
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(start);
+      d.setDate(d.getDate() + i);
+      const day = await getScheduleForDay(d);
+      if (day?.episodes.some((e) => e.show.title === 'Lonely Comedy')) {
+        found = true;
+        break;
+      }
+    }
+    expect(found).toBe(true);
+  });
+
   it('pinned shows still go on their pinned day regardless of genre preferences', async () => {
     // Mark Tuesday=Comedy. Then pin a Comedy show to Wednesday. It must stay on Wed.
     await prisma.dayGenrePreference.create({ data: { dayOfWeek: 2, genre: 'Comedy' } });
