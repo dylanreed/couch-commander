@@ -118,4 +118,74 @@
       </button>
     </div>
   </form>
+
+  <section class="bg-lounge-surface rounded-2xl p-6 border border-lounge-border mt-6">
+    <div class="flex items-center gap-3 mb-4">
+      <div class="w-10 h-10 rounded-xl bg-lounge-gold/20 flex items-center justify-center">
+        <span class="text-lounge-gold">🎭</span>
+      </div>
+      <div>
+        <h2 class="font-display text-xl font-semibold text-lounge-cream">Day Themes</h2>
+        <p class="text-sm text-lounge-muted">Tag a day with genres. Unpinned shows whose genres match a day's theme are placed there first.</p>
+      </div>
+    </div>
+
+    <% const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']; %>
+    <div class="space-y-3">
+      <% for (var d = 0; d < 7; d++) { %>
+        <div class="flex items-center gap-4">
+          <div class="w-24 text-sm text-lounge-cream font-medium"><%= dayNames[d] %></div>
+          <div class="flex flex-wrap gap-1.5" data-day-genres="<%= d %>">
+            <% if (availableGenres.length === 0) { %>
+              <span class="text-xs text-lounge-muted italic">Add shows to your watchlist to see genres here.</span>
+            <% } %>
+            <% availableGenres.forEach(function(g) { %>
+              <% var active = dayGenres[d].includes(g); %>
+              <button type="button"
+                      class="day-theme-chip text-xs px-3 py-1 rounded-full transition-colors <%= active ? 'bg-lounge-gold text-lounge-bg' : 'bg-lounge-card text-lounge-muted hover:bg-lounge-border' %>"
+                      data-day="<%= d %>"
+                      data-genre="<%= g %>"
+                      data-active="<%= active ? 'true' : 'false' %>">
+                <%= g %>
+              </button>
+            <% }); %>
+          </div>
+        </div>
+      <% } %>
+    </div>
+  </section>
+
+  <script>
+    document.querySelectorAll('.day-theme-chip').forEach(function (btn) {
+      btn.addEventListener('click', async function () {
+        var day = Number(btn.dataset.day);
+        var container = document.querySelector('[data-day-genres="' + day + '"]');
+        var nowActive = btn.dataset.active !== 'true';
+        btn.dataset.active = nowActive ? 'true' : 'false';
+        btn.classList.toggle('bg-lounge-gold');
+        btn.classList.toggle('text-lounge-bg');
+        btn.classList.toggle('bg-lounge-card');
+        btn.classList.toggle('text-lounge-muted');
+
+        var genres = Array.from(container.querySelectorAll('.day-theme-chip'))
+          .filter(function (c) { return c.dataset.active === 'true'; })
+          .map(function (c) { return c.dataset.genre; });
+
+        var r = await fetch('/api/settings/day-genres', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ dayOfWeek: day, genres: genres }),
+        });
+        if (!r.ok) {
+          alert('Failed to save day theme');
+          // Revert
+          btn.dataset.active = nowActive ? 'false' : 'true';
+          btn.classList.toggle('bg-lounge-gold');
+          btn.classList.toggle('text-lounge-bg');
+          btn.classList.toggle('bg-lounge-card');
+          btn.classList.toggle('text-lounge-muted');
+        }
+      });
+    });
+  </script>
 </div>

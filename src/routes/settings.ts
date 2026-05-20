@@ -4,6 +4,8 @@
 import { Router, Response } from 'express';
 import { getSettings, updateSettings } from '../services/settings';
 import { clearSchedule } from '../services/scheduler';
+import { prisma } from '../lib/db';
+import { getAllDayGenres } from '../services/dayGenre';
 
 const router = Router();
 
@@ -24,10 +26,24 @@ function renderWithLayout(
 router.get('/', async (_req, res) => {
   try {
     const settings = await getSettings();
+    const dayGenres = await getAllDayGenres();
+
+    // Union of genres across all current watchlist entries so the user only
+    // sees chips that map to shows they actually have.
+    const entries = await prisma.watchlistEntry.findMany({
+      include: { show: true },
+    });
+    const genreSet = new Set<string>();
+    for (const e of entries) {
+      for (const g of JSON.parse(e.show.genres) as string[]) genreSet.add(g);
+    }
+    const availableGenres = [...genreSet].sort();
 
     renderWithLayout(res, 'settings', {
       title: 'Settings',
       settings,
+      dayGenres,
+      availableGenres,
     });
   } catch (error) {
     console.error('Settings page error:', error);
