@@ -1,5 +1,5 @@
 // ABOUTME: Manages user settings for scheduling preferences.
-// ABOUTME: Handles time budgets, scheduling modes, and genre rules.
+// ABOUTME: Handles time budgets and scheduling modes.
 
 import { prisma } from '../lib/db';
 import type { Settings } from '@prisma/client';
@@ -50,17 +50,3 @@ export async function getMinutesForDay(date: Date): Promise<number> {
   return isWeekend ? settings.weekendMinutes : settings.weekdayMinutes;
 }
 
-export interface GenreRule {
-  genre: string;
-  allowedDays: number[]; // 0-6, Sunday-Saturday
-  blocked: boolean;
-}
-
-export async function getGenreRules(): Promise<GenreRule[]> {
-  const settings = await getSettings();
-  return JSON.parse(settings.genreRules);
-}
-
-export async function updateGenreRules(rules: GenreRule[]): Promise<Settings> {
-  return updateSettings({ genreRules: JSON.stringify(rules) });
-}
