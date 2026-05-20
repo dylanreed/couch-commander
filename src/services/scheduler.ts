@@ -5,6 +5,7 @@ import { prisma } from '../lib/db';
 import { getSettings, getMinutesForDay } from './settings';
 import { isEpisodeAvailable } from './tmdb';
 import { pickNextMember } from './rotation';
+import { scoreDayForShow, getDayGenres } from './dayGenre';
 import type { ScheduleDay, ScheduledEpisode, Show, WatchlistEntry, RotationGroup } from '@prisma/client';
 
 export type ScheduleDayWithEpisodes = ScheduleDay & {
@@ -156,6 +157,120 @@ async function doGenerateSchedule(startDate: Date, days: number): Promise<void> 
     } else {
       console.warn(`Unknown scheduling mode "${settings.schedulingMode}", falling back to sequential`);
       await fillDaySequential(scheduleDay.id, allAssignments, positions, minutesForDay);
+    }
+  }
+
+  // Pass 2: place unpinned watching shows onto the best-scoring day within the
+  // requested window. Unpinned means no ShowDayAssignment rows AND no rotation
+  // membership — rotation members are scheduled by rotation logic in Pass 1.
+  // Soft preference: shows still get placed even when no day's theme matches.
+  const unpinnedEntries = await prisma.watchlistEntry.findMany({
+    where: {
+      status: 'watching',
+      dayAssignments: { none: {} },
+      rotationMembers: { none: {} },
+    },
+    include: { show: true },
+  });
+
+  if (unpinnedEntries.length > 0) {
+    // Snapshot per-day remaining capacity + per-show position.
+    type DayState = {
+      date: Date;
+      dayOfWeek: number;
+      scheduleDayId: number;
+      remainingMinutes: number;
+      nextOrder: number;
+    };
+
+    const dayStates: DayState[] = [];
+    for (let i = 0; i < days; i++) {
+      const currentDate = new Date(startDate);
+      currentDate.setDate(currentDate.getDate() + i);
+      currentDate.setHours(0, 0, 0, 0);
+
+      const scheduleDay = await prisma.scheduleDay.findUnique({
+        where: { date: currentDate },
+        include: { episodes: true },
+      });
+      if (!scheduleDay) continue;
+
+      const usedMinutes = scheduleDay.episodes.reduce((s, e) => s + e.runtime, 0);
+      const maxOrder = scheduleDay.episodes.reduce((m, e) => Math.max(m, e.order), -1);
+      dayStates.push({
+        date: currentDate,
+        dayOfWeek: currentDate.getDay(),
+        scheduleDayId: scheduleDay.id,
+        remainingMinutes: scheduleDay.plannedMinutes - usedMinutes,
+        nextOrder: maxOrder + 1,
+      });
+    }
+
+    // Position pointer (season/episode) per show — initialize from the
+    // watchlist entry's current progress.
+    const unpinnedPositions = new Map<number, { season: number; episode: number }>();
+    for (const e of unpinnedEntries) {
+      unpinnedPositions.set(e.id, { season: e.currentSeason, episode: e.currentEpisode });
+    }
+
+    // Round-robin: each pass tries to schedule one episode per unpinned show
+    // on its highest-scoring day with capacity. Stop when a full pass adds nothing.
+    let progress = true;
+    while (progress) {
+      progress = false;
+      for (const entry of unpinnedEntries) {
+        const pos = unpinnedPositions.get(entry.id)!;
+        if (pos.episode > entry.show.totalEpisodes) continue;
+        const runtime = entry.show.episodeRuntime;
+        const showGenres = (() => {
+          try { return JSON.parse(entry.show.genres) as string[]; }
+          catch { return []; }
+        })();
+
+        // Score each day that can fit one more episode. Themed days reject
+        // shows whose genres don't overlap — those days are reserved for their
+        // matching shows. Days without a theme remain open to anything.
+        let bestIdx = -1;
+        let bestScore = Number.NEGATIVE_INFINITY;
+        for (let i = 0; i < dayStates.length; i++) {
+          const s = dayStates[i];
+          if (s.remainingMinutes < runtime) continue;
+          const dayGenres = await getDayGenres(s.dayOfWeek);
+          if (dayGenres.length > 0 && !showGenres.some((g) => dayGenres.includes(g))) {
+            continue;
+          }
+          const score = await scoreDayForShow(s.dayOfWeek, showGenres, s.remainingMinutes);
+          if (score > bestScore) {
+            bestScore = score;
+            bestIdx = i;
+          }
+        }
+        if (bestIdx < 0) continue;
+        const target = dayStates[bestIdx];
+
+        // Availability check for returning series (mirrors fillDaySequential)
+        if (entry.show.status === 'Returning Series') {
+          const availability = await isEpisodeAvailable(entry.show.tmdbId, pos.season, pos.episode);
+          if (!availability.available) continue;
+        }
+
+        await prisma.scheduledEpisode.create({
+          data: {
+            scheduleDayId: target.scheduleDayId,
+            showId: entry.show.id,
+            season: pos.season,
+            episode: pos.episode,
+            runtime,
+            order: target.nextOrder,
+            status: 'pending',
+          },
+        });
+
+        target.remainingMinutes -= runtime;
+        target.nextOrder += 1;
+        pos.episode += 1;
+        progress = true;
+      }
     }
   }
 

@@ -565,3 +565,109 @@ describe('Scheduler Service', () => {
     });
   });
 });
+
+describe('Pass 2: unpinned-show placement via genre affinity', () => {
+  beforeEach(async () => {
+    await prisma.scheduledEpisode.deleteMany();
+    await prisma.scheduleDay.deleteMany();
+    await prisma.dayGenrePreference.deleteMany();
+    await prisma.showDayAssignment.deleteMany();
+    await prisma.rotationMember.deleteMany();
+    await prisma.rotationDayAssignment.deleteMany();
+    await prisma.rotationGroup.deleteMany();
+    await prisma.watchlistEntry.deleteMany();
+    await prisma.show.deleteMany();
+    await prisma.settings.upsert({
+      where: { id: 1 },
+      create: { id: 1, weekdayMinutes: 60, weekendMinutes: 60, schedulingMode: 'sequential' },
+      update: {
+        weekdayMinutes: 60,
+        weekendMinutes: 60,
+        schedulingMode: 'sequential',
+        mondayMinutes: null,
+        tuesdayMinutes: null,
+        wednesdayMinutes: null,
+        thursdayMinutes: null,
+        fridayMinutes: null,
+        saturdayMinutes: null,
+        sundayMinutes: null,
+      },
+    });
+  });
+
+  async function seedShow(tmdbId: number, title: string, genres: string[], runtime = 30) {
+    const show = await prisma.show.create({
+      data: {
+        tmdbId,
+        title,
+        genres: JSON.stringify(genres),
+        totalSeasons: 1,
+        totalEpisodes: 50,
+        episodeRuntime: runtime,
+        status: 'Ended',
+      },
+    });
+    const entry = await prisma.watchlistEntry.create({ data: { showId: show.id, status: 'watching' } });
+    return { show, entry };
+  }
+
+  it('places an unpinned show on the day whose theme matches its genres', async () => {
+    // Mon=Drama, Tue=Comedy
+    await prisma.dayGenrePreference.createMany({
+      data: [
+        { dayOfWeek: 1, genre: 'Drama' },
+        { dayOfWeek: 2, genre: 'Comedy' },
+      ],
+    });
+    await seedShow(901, 'Comedy Show', ['Comedy']);
+
+    // Pick a Sunday so the 7-day window covers Mon (idx 1) and Tue (idx 2)
+    const start = new Date('2026-05-17T00:00:00.000Z'); // Sunday
+    await generateSchedule(start, 7);
+
+    const tuesday = new Date('2026-05-19T00:00:00.000Z');
+    const monday = new Date('2026-05-18T00:00:00.000Z');
+    const tueDay = await getScheduleForDay(tuesday);
+    const monDay = await getScheduleForDay(monday);
+
+    expect(tueDay!.episodes.map((e) => e.show.title)).toContain('Comedy Show');
+    expect(monDay!.episodes.map((e) => e.show.title)).not.toContain('Comedy Show');
+  });
+
+  it('still schedules an unpinned show when no day matches its genres (falls back to capacity)', async () => {
+    await seedShow(902, 'Sci-Fi Show', ['Sci-Fi']);
+    const start = new Date('2026-05-17T00:00:00.000Z');
+    await generateSchedule(start, 7);
+
+    // Scan all 7 days and make sure the show appears somewhere.
+    let found = false;
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(start);
+      d.setDate(d.getDate() + i);
+      const day = await getScheduleForDay(d);
+      if (day?.episodes.some((e) => e.show.title === 'Sci-Fi Show')) {
+        found = true;
+        break;
+      }
+    }
+    expect(found).toBe(true);
+  });
+
+  it('pinned shows still go on their pinned day regardless of genre preferences', async () => {
+    // Mark Tuesday=Comedy. Then pin a Comedy show to Wednesday. It must stay on Wed.
+    await prisma.dayGenrePreference.create({ data: { dayOfWeek: 2, genre: 'Comedy' } });
+    const { entry } = await seedShow(903, 'Pinned Comedy', ['Comedy']);
+    await prisma.showDayAssignment.create({ data: { watchlistEntryId: entry.id, dayOfWeek: 3 } });
+
+    const start = new Date('2026-05-17T00:00:00.000Z');
+    await generateSchedule(start, 7);
+
+    const wednesday = new Date('2026-05-20T00:00:00.000Z');
+    const tuesday = new Date('2026-05-19T00:00:00.000Z');
+    const wedDay = await getScheduleForDay(wednesday);
+    const tueDay = await getScheduleForDay(tuesday);
+
+    expect(wedDay!.episodes.map((e) => e.show.title)).toContain('Pinned Comedy');
+    expect(tueDay!.episodes.map((e) => e.show.title)).not.toContain('Pinned Comedy');
+  });
+});
